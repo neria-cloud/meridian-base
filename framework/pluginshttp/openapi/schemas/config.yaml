@@ -1,0 +1,17 @@
+# ConfigMarshallerPlugin messages, shared by MarshalConfigForStorage and RedactConfig
+
+ConfigMapRequest:
+  type: object
+  properties:
+    config:
+      $ref: './common.yaml#/ConfigMap'
+  additionalProperties: false
+
+ConfigMapResponse:
+  type: object
+  properties:
+    config:
+      $ref: './common.yaml#/ConfigMap'
+    error:
+      $ref: './common.yaml#/HookError'
+  additionalProperties: false

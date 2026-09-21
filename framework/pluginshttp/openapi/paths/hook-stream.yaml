@@ -1,0 +1,68 @@
+# HookStream — the multiplexed bidirectional stream (WebSocket)
+
+hooks:
+  get:
+    operationId: HookStream
+    x-meridian-hook: HookStream
+    summary: Open the HookStream (WebSocket upgrade)
+    description: |
+      Upgrades the connection to a WebSocket. Afterwards every binary frame
+      from the host is one `HookStreamRequest` and every binary frame from the
+      plugin one `HookStreamResponse` with the same `id`, in order. The host
+      keeps one stream per concurrent caller; there is no interleaving of
+      requests on one stream.
+
+      The `enc` query parameter selects the JSON encoder the plugin should use
+      for its replies.
+    tags:
+    - HookStream
+    parameters:
+    - name: enc
+      in: query
+      required: false
+      description: JSON encoding of the frames (informational for the plugin; both are the same JSON)
+      schema:
+        type: string
+        enum: [sonic, std]
+        default: sonic
+    - name: Upgrade
+      in: header
+      required: true
+      schema:
+        type: string
+        enum: [websocket]
+    - name: Connection
+      in: header
+      required: true
+      schema:
+        type: string
+        enum: [Upgrade]
+    - name: Sec-WebSocket-Key
+      in: header
+      required: true
+      schema:
+        type: string
+    - name: Sec-WebSocket-Version
+      in: header
+      required: true
+      schema:
+        type: string
+        enum: ['13']
+    responses:
+      '101':
+        description: Switching Protocols; the connection now carries WebSocket binary frames
+        headers:
+          Sec-WebSocket-Accept:
+            schema:
+              type: string
+      '400':
+        $ref: '../openapi.yaml#/components/responses/TransportError'
+      '404':
+        description: Wrong path (the plugin only serves the upgrade on this path)
+    x-websocket:
+      description: One binary frame per message, no fragmentation semantics beyond RFC 6455; client-to-server frames are masked
+      messages:
+        host-to-plugin:
+          $ref: '../schemas/hook-stream.yaml#/HookStreamRequest'
+        plugin-to-host:
+          $ref: '../schemas/hook-stream.yaml#/HookStreamResponse'

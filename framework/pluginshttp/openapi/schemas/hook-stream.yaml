@@ -1,0 +1,171 @@
+# HookStream envelope.
+# In JSON the oneof becomes a `call` discriminator plus exactly one payload property.
+
+HookStreamRequest:
+  type: object
+  description: |
+    One host -> plugin message on the stream. `id` is echoed in the reply.
+    Exactly one payload property is present and `call` names it. The lifecycle
+    calls use the same envelope.
+  required: [id, call]
+  properties:
+    id:
+      type: integer
+      format: int64
+      minimum: 1
+      description: Per-stream sequence number, unique among in-flight requests on this stream
+    call:
+      type: string
+      description: Name of the call carried in this message
+      enum:
+        - Capabilities
+        - Init
+        - GetName
+        - Cleanup
+        - HTTPTransportPreAuthHook
+        - HTTPTransportPreHook
+        - HTTPTransportPostHook
+        - HTTPTransportStreamChunkHook
+        - PreRequestHook
+        - PreLLMHook
+        - PostLLMHook
+        - PreMCPHook
+        - PostMCPHook
+        - PreMCPConnectionHook
+        - PostMCPConnectionHook
+        - Inject
+        - MarshalConfigForStorage
+        - RedactConfig
+    capabilities:
+      $ref: './lifecycle.yaml#/CapabilitiesRequest'
+    init:
+      $ref: './lifecycle.yaml#/InitRequest'
+    get_name:
+      $ref: './lifecycle.yaml#/GetNameRequest'
+    cleanup:
+      $ref: './lifecycle.yaml#/CleanupRequest'
+    http_transport_pre_auth_hook:
+      $ref: './http-transport.yaml#/HTTPTransportPreHookRequest'
+    http_transport_pre_hook:
+      $ref: './http-transport.yaml#/HTTPTransportPreHookRequest'
+    http_transport_post_hook:
+      $ref: './http-transport.yaml#/HTTPTransportPostHookRequest'
+    http_transport_stream_chunk_hook:
+      $ref: './http-transport.yaml#/HTTPTransportStreamChunkHookRequest'
+    pre_request_hook:
+      $ref: './llm.yaml#/PreRequestHookRequest'
+    pre_llm_hook:
+      $ref: './llm.yaml#/PreLLMHookRequest'
+    post_llm_hook:
+      $ref: './llm.yaml#/PostLLMHookRequest'
+    pre_mcp_hook:
+      $ref: './mcp.yaml#/PreMCPHookRequest'
+    post_mcp_hook:
+      $ref: './mcp.yaml#/PostMCPHookRequest'
+    pre_mcp_connection_hook:
+      $ref: './mcp.yaml#/PreMCPConnectionHookRequest'
+    post_mcp_connection_hook:
+      $ref: './mcp.yaml#/PostMCPConnectionHookRequest'
+    inject:
+      $ref: './observability.yaml#/InjectRequest'
+    marshal_config_for_storage:
+      $ref: './config.yaml#/ConfigMapRequest'
+    redact_config:
+      $ref: './config.yaml#/ConfigMapRequest'
+  additionalProperties: false
+  oneOf:
+    - required: [capabilities]
+    - required: [init]
+    - required: [get_name]
+    - required: [cleanup]
+    - required: [http_transport_pre_auth_hook]
+    - required: [http_transport_pre_hook]
+    - required: [http_transport_post_hook]
+    - required: [http_transport_stream_chunk_hook]
+    - required: [pre_request_hook]
+    - required: [pre_llm_hook]
+    - required: [post_llm_hook]
+    - required: [pre_mcp_hook]
+    - required: [post_mcp_hook]
+    - required: [pre_mcp_connection_hook]
+    - required: [post_mcp_connection_hook]
+    - required: [inject]
+    - required: [marshal_config_for_storage]
+    - required: [redact_config]
+
+HookStreamResponse:
+  type: object
+  description: |
+    One plugin -> host message. `id` matches the request. Either exactly one
+    payload property is present (the call's response message) or
+    `transport_error` explains why the call could not be dispatched at all
+    (unknown call, decode failure, plugin shutting down).
+  required: [id]
+  properties:
+    id:
+      type: integer
+      format: int64
+      minimum: 0
+    call:
+      type: string
+      description: Name of the call this message answers (informational)
+    transport_error:
+      type: string
+      minLength: 1
+    capabilities:
+      $ref: './lifecycle.yaml#/CapabilitiesResponse'
+    init:
+      $ref: './lifecycle.yaml#/InitResponse'
+    get_name:
+      $ref: './lifecycle.yaml#/GetNameResponse'
+    cleanup:
+      $ref: './lifecycle.yaml#/CleanupResponse'
+    http_transport_pre_auth_hook:
+      $ref: './http-transport.yaml#/HTTPTransportPreHookResponse'
+    http_transport_pre_hook:
+      $ref: './http-transport.yaml#/HTTPTransportPreHookResponse'
+    http_transport_post_hook:
+      $ref: './http-transport.yaml#/HTTPTransportPostHookResponse'
+    http_transport_stream_chunk_hook:
+      $ref: './http-transport.yaml#/HTTPTransportStreamChunkHookResponse'
+    pre_request_hook:
+      $ref: './llm.yaml#/PreRequestHookResponse'
+    pre_llm_hook:
+      $ref: './llm.yaml#/PreLLMHookResponse'
+    post_llm_hook:
+      $ref: './llm.yaml#/PostLLMHookResponse'
+    pre_mcp_hook:
+      $ref: './mcp.yaml#/PreMCPHookResponse'
+    post_mcp_hook:
+      $ref: './mcp.yaml#/PostMCPHookResponse'
+    pre_mcp_connection_hook:
+      $ref: './mcp.yaml#/PreMCPConnectionHookResponse'
+    post_mcp_connection_hook:
+      $ref: './mcp.yaml#/PostMCPConnectionHookResponse'
+    inject:
+      $ref: './observability.yaml#/InjectResponse'
+    marshal_config_for_storage:
+      $ref: './config.yaml#/ConfigMapResponse'
+    redact_config:
+      $ref: './config.yaml#/ConfigMapResponse'
+  additionalProperties: false
+  oneOf:
+    - required: [transport_error]
+    - required: [capabilities]
+    - required: [init]
+    - required: [get_name]
+    - required: [cleanup]
+    - required: [http_transport_pre_auth_hook]
+    - required: [http_transport_pre_hook]
+    - required: [http_transport_post_hook]
+    - required: [http_transport_stream_chunk_hook]
+    - required: [pre_request_hook]
+    - required: [pre_llm_hook]
+    - required: [post_llm_hook]
+    - required: [pre_mcp_hook]
+    - required: [post_mcp_hook]
+    - required: [pre_mcp_connection_hook]
+    - required: [post_mcp_connection_hook]
+    - required: [inject]
+    - required: [marshal_config_for_storage]
+    - required: [redact_config]

@@ -1,0 +1,82 @@
+# llm operations — POST /api/meridian/plugin/v1/{method}
+
+pre-request-hook:
+  post:
+    operationId: PreRequestHook
+    x-meridian-hook: PreRequestHook
+    summary: Routing phase, once per top-level request
+    description: |
+      The reply error is non-blocking: the host logs it and continues. Cannot short-circuit.
+    tags:
+    - LLMPlugin
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/llm.yaml#/PreRequestHookRequest'
+    responses:
+      '200':
+        description: The call ran; hook-level errors are inside the message
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/llm.yaml#/PreRequestHookResponse'
+      '400':
+        $ref: '../openapi.yaml#/components/responses/TransportError'
+      '500':
+        $ref: '../openapi.yaml#/components/responses/TransportError'
+
+pre-llm-hook:
+  post:
+    operationId: PreLLMHook
+    x-meridian-hook: PreLLMHook
+    summary: Before the provider call
+    description: |
+      May mutate the request (echoed back) or short-circuit with a response or an error.
+    tags:
+    - LLMPlugin
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/llm.yaml#/PreLLMHookRequest'
+    responses:
+      '200':
+        description: The call ran; hook-level errors are inside the message
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/llm.yaml#/PreLLMHookResponse'
+      '400':
+        $ref: '../openapi.yaml#/components/responses/TransportError'
+      '500':
+        $ref: '../openapi.yaml#/components/responses/TransportError'
+
+post-llm-hook:
+  post:
+    operationId: PostLLMHook
+    x-meridian-hook: PostLLMHook
+    summary: After the provider call
+    description: |
+      Receives the provider response and/or error; may replace either.
+    tags:
+    - LLMPlugin
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/llm.yaml#/PostLLMHookRequest'
+    responses:
+      '200':
+        description: The call ran; hook-level errors are inside the message
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/llm.yaml#/PostLLMHookResponse'
+      '400':
+        $ref: '../openapi.yaml#/components/responses/TransportError'
+      '500':
+        $ref: '../openapi.yaml#/components/responses/TransportError'

@@ -1,0 +1,10 @@
+go 1.26.5
+
+use .
+
+// The sibling modules are replaced by directory at every version (a workspace
+// module cannot be), so the pins this module and the siblings carry for each
+// other never need a tag: the suite runs on a fresh tree before any release.
+replace github.com/neria-cloud/meridian-base/core => ../../core
+
+replace github.com/neria-cloud/meridian-base/framework => ../../framework

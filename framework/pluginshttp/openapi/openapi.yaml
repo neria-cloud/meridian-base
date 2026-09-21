@@ -1,0 +1,285 @@
+openapi: 3.1.0
+info:
+  title: Meridian Plugin API
+  description: |
+    Interface of a remote HTTP plugin for Meridian (github.com/neria-cloud/meridian-base).
+    A plugin is a plain HTTP server; the host calls it with JSON messages. It
+    implements the same hooks as an in-process plugin and is addressed by name
+    with the same lifecycle (Capabilities, Init, GetName, Cleanup).
+
+    ## Operations
+
+    Every hook is `POST /api/meridian/plugin/v1/{method}` (the method name in
+    lower case) with the request message as JSON body and the response message
+    as JSON reply. Hook-level failures are carried inside the response
+    (`error: HookError`); HTTP status codes are reserved for transport failures.
+
+    ## HookStream (WebSocket)
+
+    `GET /api/meridian/plugin/v1/hookstream` upgrades to a WebSocket. Each
+    binary frame from the host is one `HookStreamRequest`, each frame from the
+    plugin one `HookStreamResponse` with the same `id`. The envelope carries
+    every hook above plus the lifecycle calls; exactly one payload property is
+    set per message, and `call` names it. OpenAPI cannot describe WebSocket
+    frames natively, so the operation documents them with the `x-websocket`
+    extension. Meridian calls every hook over the stream; the POST operations
+    stay for tooling and for `Capabilities`, which the host sends first.
+
+    ## Parity and body_changed
+
+    Message properties are the JSON tags of Meridian's core structs (HTTPRequest,
+    HTTPResponse, BifrostError, the typed Bifrost<Type>Request/Response named by
+    `request_type`); untagged core unions cross as a discriminator plus the
+    typed struct's JSON. Every reply carries `body_changed`: false (default)
+    tells the host to keep its objects untouched and skip decoding any payload
+    in the reply; true makes the reply's payload replace them in place.
+
+    ## Validation
+
+    All schemas are plain JSON Schema 2020-12 (OpenAPI 3.1). The Go package
+    `framework/pluginshttp` of Meridian is generated from this document
+    (`bifrost-prep genspec`) and is the client-side view of the same contract.
+  version: 1.1.0
+  contact:
+    name: Neria Cloud
+    url: https://neria.cloud/meridian
+  license:
+    name: Apache 2.0
+    url: https://opensource.org/licenses/Apache-2.0
+
+servers:
+  - url: "{baseUrl}"
+    description: The plugin process (address from the MERIDIAN|1|<net>|<addr> handshake line)
+    variables:
+      baseUrl:
+        default: http://127.0.0.1:0
+        description: Ephemeral loopback address printed by the plugin at start-up
+
+tags:
+  - name: Lifecycle
+    description: Capabilities negotiation, initialization, naming and shutdown
+  - name: HTTPTransportPlugin
+    description: Hooks at the HTTP transport layer (Meridian HTTPTransportPlugin interface)
+  - name: LLMPlugin
+    description: Hooks around provider calls (Meridian LLMPlugin interface)
+  - name: MCPPlugin
+    description: Hooks around MCP calls (Meridian MCPPlugin interface)
+  - name: MCPConnectionPlugin
+    description: Hooks around MCP Connect (Meridian MCPConnectionPlugin interface)
+  - name: ObservabilityPlugin
+    description: Trace injection (Meridian ObservabilityPlugin interface)
+  - name: ConfigMarshallerPlugin
+    description: Config storage/redaction transforms (Meridian ConfigMarshallerPlugin interface)
+  - name: HookStream
+    description: Multiplexed bidirectional stream carrying every call
+
+paths:
+  # ==================== Lifecycle ====================
+  /api/meridian/plugin/v1/capabilities:
+    $ref: './paths/lifecycle.yaml#/capabilities'
+  /api/meridian/plugin/v1/init:
+    $ref: './paths/lifecycle.yaml#/init'
+  /api/meridian/plugin/v1/getname:
+    $ref: './paths/lifecycle.yaml#/get-name'
+  /api/meridian/plugin/v1/cleanup:
+    $ref: './paths/lifecycle.yaml#/cleanup'
+  /api/meridian/plugin/v1/health:
+    $ref: './paths/lifecycle.yaml#/health'
+  /api/meridian/plugin/v1/status:
+    $ref: './paths/lifecycle.yaml#/status'
+
+  # ==================== HTTPTransportPlugin ====================
+  /api/meridian/plugin/v1/httptransportpreauthhook:
+    $ref: './paths/http-transport.yaml#/http-transport-pre-auth-hook'
+  /api/meridian/plugin/v1/httptransportprehook:
+    $ref: './paths/http-transport.yaml#/http-transport-pre-hook'
+  /api/meridian/plugin/v1/httptransportposthook:
+    $ref: './paths/http-transport.yaml#/http-transport-post-hook'
+  /api/meridian/plugin/v1/httptransportstreamchunkhook:
+    $ref: './paths/http-transport.yaml#/http-transport-stream-chunk-hook'
+
+  # ==================== LLMPlugin ====================
+  /api/meridian/plugin/v1/prerequesthook:
+    $ref: './paths/llm.yaml#/pre-request-hook'
+  /api/meridian/plugin/v1/prellmhook:
+    $ref: './paths/llm.yaml#/pre-llm-hook'
+  /api/meridian/plugin/v1/postllmhook:
+    $ref: './paths/llm.yaml#/post-llm-hook'
+
+  # ==================== MCPPlugin / MCPConnectionPlugin ====================
+  /api/meridian/plugin/v1/premcphook:
+    $ref: './paths/mcp.yaml#/pre-mcp-hook'
+  /api/meridian/plugin/v1/postmcphook:
+    $ref: './paths/mcp.yaml#/post-mcp-hook'
+  /api/meridian/plugin/v1/premcpconnectionhook:
+    $ref: './paths/mcp.yaml#/pre-mcp-connection-hook'
+  /api/meridian/plugin/v1/postmcpconnectionhook:
+    $ref: './paths/mcp.yaml#/post-mcp-connection-hook'
+
+  # ==================== ObservabilityPlugin ====================
+  /api/meridian/plugin/v1/inject:
+    $ref: './paths/observability.yaml#/inject'
+
+  # ==================== ConfigMarshallerPlugin ====================
+  /api/meridian/plugin/v1/marshalconfigforstorage:
+    $ref: './paths/config.yaml#/marshal-config-for-storage'
+  /api/meridian/plugin/v1/redactconfig:
+    $ref: './paths/config.yaml#/redact-config'
+
+  # ==================== HookStream (WebSocket) ====================
+  /api/meridian/plugin/v1/hookstream:
+    $ref: './paths/hook-stream.yaml#/hooks'
+
+components:
+  securitySchemes:
+    PluginBearerAuth:
+      type: http
+      scheme: bearer
+      description: |
+        Optional. The host sends the headers the operator configured for the plugin (for example
+        Authorization: Bearer <token>) on the HookStream upgrade, on POST /capabilities and on the
+        health/status probes; the plugin decides whether to require them.
+  responses:
+    TransportError:
+      $ref: './schemas/common.yaml#/components/responses/TransportError'
+
+  schemas:
+    # ---- common ----
+    ContextDetails:
+      $ref: './schemas/common.yaml#/ContextDetails'
+    ContextDelta:
+      $ref: './schemas/common.yaml#/ContextDelta'
+    RequestDetails:
+      $ref: './schemas/common.yaml#/RequestDetails'
+    ResponseDetails:
+      $ref: './schemas/common.yaml#/ResponseDetails'
+    StreamChunk:
+      $ref: './schemas/common.yaml#/StreamChunk'
+    BifrostError:
+      $ref: './schemas/common.yaml#/BifrostError'
+    ErrorField:
+      $ref: './schemas/common.yaml#/ErrorField'
+    RequestType:
+      $ref: './schemas/common.yaml#/RequestType'
+    MCPRequestType:
+      $ref: './schemas/common.yaml#/MCPRequestType'
+    LLMRequest:
+      $ref: './schemas/common.yaml#/LLMRequest'
+    LLMResponse:
+      $ref: './schemas/common.yaml#/LLMResponse'
+    LLMShortCircuit:
+      $ref: './schemas/common.yaml#/LLMShortCircuit'
+    MCPRequest:
+      $ref: './schemas/common.yaml#/MCPRequest'
+    MCPResponse:
+      $ref: './schemas/common.yaml#/MCPResponse'
+    MCPShortCircuit:
+      $ref: './schemas/common.yaml#/MCPShortCircuit'
+    MCPConnectRequest:
+      $ref: './schemas/common.yaml#/MCPConnectRequest'
+    MCPConnectResponse:
+      $ref: './schemas/common.yaml#/MCPConnectResponse'
+    Span:
+      $ref: './schemas/common.yaml#/Span'
+    SpanEvent:
+      $ref: './schemas/common.yaml#/SpanEvent'
+    PluginLogEntry:
+      $ref: './schemas/common.yaml#/PluginLogEntry'
+    HookError:
+      $ref: './schemas/common.yaml#/HookError'
+    ConfigMap:
+      $ref: './schemas/common.yaml#/ConfigMap'
+    Trace:
+      $ref: './schemas/common.yaml#/Trace'
+    HookName:
+      $ref: './schemas/common.yaml#/HookName'
+    TransportErrorBody:
+      $ref: './schemas/common.yaml#/TransportErrorBody'
+
+    # ---- lifecycle ----
+    CapabilitiesRequest:
+      $ref: './schemas/lifecycle.yaml#/CapabilitiesRequest'
+    CapabilitiesResponse:
+      $ref: './schemas/lifecycle.yaml#/CapabilitiesResponse'
+    InitRequest:
+      $ref: './schemas/lifecycle.yaml#/InitRequest'
+    InitResponse:
+      $ref: './schemas/lifecycle.yaml#/InitResponse'
+    GetNameRequest:
+      $ref: './schemas/lifecycle.yaml#/GetNameRequest'
+    GetNameResponse:
+      $ref: './schemas/lifecycle.yaml#/GetNameResponse'
+    CleanupRequest:
+      $ref: './schemas/lifecycle.yaml#/CleanupRequest'
+    CleanupResponse:
+      $ref: './schemas/lifecycle.yaml#/CleanupResponse'
+    HealthResponse:
+      $ref: './schemas/lifecycle.yaml#/HealthResponse'
+    StatusResponse:
+      $ref: './schemas/lifecycle.yaml#/StatusResponse'
+    StatusStats:
+      $ref: './schemas/lifecycle.yaml#/StatusStats'
+
+    # ---- HTTPTransportPlugin ----
+    HTTPTransportPreHookRequest:
+      $ref: './schemas/http-transport.yaml#/HTTPTransportPreHookRequest'
+    HTTPTransportPreHookResponse:
+      $ref: './schemas/http-transport.yaml#/HTTPTransportPreHookResponse'
+    HTTPTransportPostHookRequest:
+      $ref: './schemas/http-transport.yaml#/HTTPTransportPostHookRequest'
+    HTTPTransportPostHookResponse:
+      $ref: './schemas/http-transport.yaml#/HTTPTransportPostHookResponse'
+    HTTPTransportStreamChunkHookRequest:
+      $ref: './schemas/http-transport.yaml#/HTTPTransportStreamChunkHookRequest'
+    HTTPTransportStreamChunkHookResponse:
+      $ref: './schemas/http-transport.yaml#/HTTPTransportStreamChunkHookResponse'
+
+    # ---- LLMPlugin ----
+    PreRequestHookRequest:
+      $ref: './schemas/llm.yaml#/PreRequestHookRequest'
+    PreRequestHookResponse:
+      $ref: './schemas/llm.yaml#/PreRequestHookResponse'
+    PreLLMHookRequest:
+      $ref: './schemas/llm.yaml#/PreLLMHookRequest'
+    PreLLMHookResponse:
+      $ref: './schemas/llm.yaml#/PreLLMHookResponse'
+    PostLLMHookRequest:
+      $ref: './schemas/llm.yaml#/PostLLMHookRequest'
+    PostLLMHookResponse:
+      $ref: './schemas/llm.yaml#/PostLLMHookResponse'
+
+    # ---- MCPPlugin / MCPConnectionPlugin ----
+    PreMCPHookRequest:
+      $ref: './schemas/mcp.yaml#/PreMCPHookRequest'
+    PreMCPHookResponse:
+      $ref: './schemas/mcp.yaml#/PreMCPHookResponse'
+    PostMCPHookRequest:
+      $ref: './schemas/mcp.yaml#/PostMCPHookRequest'
+    PostMCPHookResponse:
+      $ref: './schemas/mcp.yaml#/PostMCPHookResponse'
+    PreMCPConnectionHookRequest:
+      $ref: './schemas/mcp.yaml#/PreMCPConnectionHookRequest'
+    PreMCPConnectionHookResponse:
+      $ref: './schemas/mcp.yaml#/PreMCPConnectionHookResponse'
+    PostMCPConnectionHookRequest:
+      $ref: './schemas/mcp.yaml#/PostMCPConnectionHookRequest'
+    PostMCPConnectionHookResponse:
+      $ref: './schemas/mcp.yaml#/PostMCPConnectionHookResponse'
+
+    # ---- ObservabilityPlugin ----
+    InjectRequest:
+      $ref: './schemas/observability.yaml#/InjectRequest'
+    InjectResponse:
+      $ref: './schemas/observability.yaml#/InjectResponse'
+
+    # ---- ConfigMarshallerPlugin ----
+    ConfigMapRequest:
+      $ref: './schemas/config.yaml#/ConfigMapRequest'
+    ConfigMapResponse:
+      $ref: './schemas/config.yaml#/ConfigMapResponse'
+
+    # ---- HookStream ----
+    HookStreamRequest:
+      $ref: './schemas/hook-stream.yaml#/HookStreamRequest'
+    HookStreamResponse:
+      $ref: './schemas/hook-stream.yaml#/HookStreamResponse'

@@ -1,0 +1,105 @@
+# mcp operations — POST /api/meridian/plugin/v1/{method}
+
+pre-mcp-hook:
+  post:
+    operationId: PreMCPHook
+    x-meridian-hook: PreMCPHook
+    summary: Before an MCP call
+    description: May mutate the request (echoed back) or short-circuit with a response or an error.
+    tags:
+    - MCPPlugin
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/mcp.yaml#/PreMCPHookRequest'
+    responses:
+      '200':
+        description: The call ran; hook-level errors are inside the message
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/mcp.yaml#/PreMCPHookResponse'
+      '400':
+        $ref: '../openapi.yaml#/components/responses/TransportError'
+      '500':
+        $ref: '../openapi.yaml#/components/responses/TransportError'
+
+post-mcp-hook:
+  post:
+    operationId: PostMCPHook
+    x-meridian-hook: PostMCPHook
+    summary: After an MCP call
+    description: Receives the MCP response and/or error; may replace either.
+    tags:
+    - MCPPlugin
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/mcp.yaml#/PostMCPHookRequest'
+    responses:
+      '200':
+        description: The call ran; hook-level errors are inside the message
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/mcp.yaml#/PostMCPHookResponse'
+      '400':
+        $ref: '../openapi.yaml#/components/responses/TransportError'
+      '500':
+        $ref: '../openapi.yaml#/components/responses/TransportError'
+
+pre-mcp-connection-hook:
+  post:
+    operationId: PreMCPConnectionHook
+    x-meridian-hook: PreMCPConnectionHook
+    summary: Before an MCP Connect
+    description: Before an MCP Connect; may mutate the request or short-circuit.
+    tags:
+    - MCPConnectionPlugin
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/mcp.yaml#/PreMCPConnectionHookRequest'
+    responses:
+      '200':
+        description: The call ran; hook-level errors are inside the message
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/mcp.yaml#/PreMCPConnectionHookResponse'
+      '400':
+        $ref: '../openapi.yaml#/components/responses/TransportError'
+      '500':
+        $ref: '../openapi.yaml#/components/responses/TransportError'
+
+post-mcp-connection-hook:
+  post:
+    operationId: PostMCPConnectionHook
+    x-meridian-hook: PostMCPConnectionHook
+    summary: After an MCP Connect
+    description: After an MCP Connect; receives the response and/or error.
+    tags:
+    - MCPConnectionPlugin
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/mcp.yaml#/PostMCPConnectionHookRequest'
+    responses:
+      '200':
+        description: The call ran; hook-level errors are inside the message
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/mcp.yaml#/PostMCPConnectionHookResponse'
+      '400':
+        $ref: '../openapi.yaml#/components/responses/TransportError'
+      '500':
+        $ref: '../openapi.yaml#/components/responses/TransportError'

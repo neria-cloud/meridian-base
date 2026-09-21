@@ -1,0 +1,2587 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Meridian Plugin API",
+    "description": "Interface of a remote HTTP plugin for Meridian (github.com/neria-cloud/meridian).\nA plugin is a plain HTTP server; the host calls it with JSON messages. It\nimplements the same hooks as an in-process plugin and is addressed by name\nwith the same lifecycle (Capabilities, Init, GetName, Cleanup).\n\n## Operations\n\nEvery hook is `POST /api/meridian/plugin/v1/{method}` (the method name in\nlower case) with the request message as JSON body and the response message\nas JSON reply. Hook-level failures are carried inside the response\n(`error: HookError`); HTTP status codes are reserved for transport failures.\n\n## HookStream (WebSocket)\n\n`GET /api/meridian/plugin/v1/hookstream` upgrades to a WebSocket. Each\nbinary frame from the host is one `HookStreamRequest`, each frame from the\nplugin one `HookStreamResponse` with the same `id`. The envelope carries\nevery hook above plus the lifecycle calls; exactly one payload property is\nset per message, and `call` names it. OpenAPI cannot describe WebSocket\nframes natively, so the operation documents them with the `x-websocket`\nextension. Meridian calls every hook over the stream; the POST operations\nstay for tooling and for `Capabilities`, which the host sends first.\n\n## Parity and body_changed\n\nMessage properties are the JSON tags of Meridian's core structs (HTTPRequest,\nHTTPResponse, BifrostError, the typed Bifrost<Type>Request/Response named by\n`request_type`); untagged core unions cross as a discriminator plus the\ntyped struct's JSON. Every reply carries `body_changed`: false (default)\ntells the host to keep its objects untouched and skip decoding any payload\nin the reply; true makes the reply's payload replace them in place.\n\n## Validation\n\nAll schemas are plain JSON Schema 2020-12 (OpenAPI 3.1). The Go package\n`framework/pluginshttp` of Meridian is generated from this document\n(`bifrost-prep genspec`) and is the client-side view of the same contract.\n",
+    "version": "1.1.0",
+    "contact": {
+      "name": "Neria Cloud",
+      "url": "https://neria.cloud/meridian"
+    },
+    "license": {
+      "name": "Apache 2.0",
+      "url": "https://opensource.org/licenses/Apache-2.0"
+    }
+  },
+  "servers": [
+    {
+      "url": "{baseUrl}",
+      "description": "The plugin process (address from the MERIDIAN|1|<net>|<addr> handshake line)",
+      "variables": {
+        "baseUrl": {
+          "default": "http://127.0.0.1:0",
+          "description": "Ephemeral loopback address printed by the plugin at start-up"
+        }
+      }
+    }
+  ],
+  "tags": [
+    {
+      "name": "Lifecycle",
+      "description": "Capabilities negotiation, initialization, naming and shutdown"
+    },
+    {
+      "name": "HTTPTransportPlugin",
+      "description": "Hooks at the HTTP transport layer (Meridian HTTPTransportPlugin interface)"
+    },
+    {
+      "name": "LLMPlugin",
+      "description": "Hooks around provider calls (Meridian LLMPlugin interface)"
+    },
+    {
+      "name": "MCPPlugin",
+      "description": "Hooks around MCP calls (Meridian MCPPlugin interface)"
+    },
+    {
+      "name": "MCPConnectionPlugin",
+      "description": "Hooks around MCP Connect (Meridian MCPConnectionPlugin interface)"
+    },
+    {
+      "name": "ObservabilityPlugin",
+      "description": "Trace injection (Meridian ObservabilityPlugin interface)"
+    },
+    {
+      "name": "ConfigMarshallerPlugin",
+      "description": "Config storage/redaction transforms (Meridian ConfigMarshallerPlugin interface)"
+    },
+    {
+      "name": "HookStream",
+      "description": "Multiplexed bidirectional stream carrying every call"
+    }
+  ],
+  "paths": {
+    "/api/meridian/plugin/v1/capabilities": {
+      "post": {
+        "operationId": "Capabilities",
+        "x-meridian-hook": "Capabilities",
+        "summary": "Report implemented hooks and protocol version",
+        "description": "The host calls it first on every connection. Hooks not listed are never called (passthrough on the host side).\n",
+        "tags": [
+          "Lifecycle"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CapabilitiesRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The call ran; hook-level errors are inside the message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CapabilitiesResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/TransportError"
+          },
+          "500": {
+            "$ref": "#/components/responses/TransportError"
+          }
+        }
+      }
+    },
+    "/api/meridian/plugin/v1/init": {
+      "post": {
+        "operationId": "Init",
+        "x-meridian-hook": "Init",
+        "summary": "Initialize the plugin with its configuration",
+        "description": "Called once after Capabilities when a configuration is present. A `error` in the reply aborts loading.\n",
+        "tags": [
+          "Lifecycle"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InitRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The call ran; hook-level errors are inside the message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InitResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/TransportError"
+          },
+          "500": {
+            "$ref": "#/components/responses/TransportError"
+          }
+        }
+      }
+    },
+    "/api/meridian/plugin/v1/getname": {
+      "post": {
+        "operationId": "GetName",
+        "x-meridian-hook": "GetName",
+        "summary": "Return the plugin name",
+        "description": "The plugin's system identifier, stable for the lifetime of the process.",
+        "tags": [
+          "Lifecycle"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GetNameRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The call ran; hook-level errors are inside the message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetNameResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/TransportError"
+          },
+          "500": {
+            "$ref": "#/components/responses/TransportError"
+          }
+        }
+      }
+    },
+    "/api/meridian/plugin/v1/cleanup": {
+      "post": {
+        "operationId": "Cleanup",
+        "x-meridian-hook": "Cleanup",
+        "summary": "Release resources before shutdown",
+        "description": "The host sends SIGTERM to the plugin process group after the reply (or after a 2 s timeout).\n",
+        "tags": [
+          "Lifecycle"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CleanupRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The call ran; hook-level errors are inside the message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CleanupResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/TransportError"
+          },
+          "500": {
+            "$ref": "#/components/responses/TransportError"
+          }
+        }
+      }
+    },
+    "/api/meridian/plugin/v1/health": {
+      "get": {
+        "operationId": "Health",
+        "x-meridian-hook": "Health",
+        "summary": "Liveness and dependency health of the plugin process",
+        "description": "Mirrors Meridian's /health: 200 when the plugin can serve hooks (ok or degraded), 503 when it\ncannot. Optional: a host that receives 404 probes with POST /capabilities instead.\n",
+        "tags": [
+          "Lifecycle"
+        ],
+        "responses": {
+          "200": {
+            "description": "Healthy, or degraded but serving",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/meridian/plugin/v1/status": {
+      "get": {
+        "operationId": "Status",
+        "x-meridian-hook": "Status",
+        "summary": "Identity, capabilities and counters of the plugin process",
+        "description": "Optional; a host that receives 404 keeps the load-time Capabilities reply.",
+        "tags": [
+          "Lifecycle"
+        ],
+        "responses": {
+          "200": {
+            "description": "Status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/meridian/plugin/v1/httptransportpreauthhook": {
+      "post": {
+        "operationId": "HTTPTransportPreAuthHook",
+        "x-meridian-hook": "HTTPTransportPreAuthHook",
+        "summary": "Intercept an HTTP request before authentication",
+        "description": "Same messages as HTTPTransportPreHook. `response` in the reply short-circuits the request before authentication.\n",
+        "tags": [
+          "HTTPTransportPlugin"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HTTPTransportPreHookRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The call ran; hook-level errors are inside the message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPTransportPreHookResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/TransportError"
+          },
+          "500": {
+            "$ref": "#/components/responses/TransportError"
+          }
+        }
+      }
+    },
+    "/api/meridian/plugin/v1/httptransportprehook": {
+      "post": {
+        "operationId": "HTTPTransportPreHook",
+        "x-meridian-hook": "HTTPTransportPreHook",
+        "summary": "Intercept an HTTP request before it enters the core",
+        "description": "Mutations to `request` are echoed back and applied in place by the host; `response` short-circuits.\n",
+        "tags": [
+          "HTTPTransportPlugin"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HTTPTransportPreHookRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The call ran; hook-level errors are inside the message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPTransportPreHookResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/TransportError"
+          },
+          "500": {
+            "$ref": "#/components/responses/TransportError"
+          }
+        }
+      }
+    },
+    "/api/meridian/plugin/v1/httptransportposthook": {
+      "post": {
+        "operationId": "HTTPTransportPostHook",
+        "x-meridian-hook": "HTTPTransportPostHook",
+        "summary": "Intercept an HTTP response after the core produced it",
+        "description": "Mutations to `response` are echoed back and applied in place.\n",
+        "tags": [
+          "HTTPTransportPlugin"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HTTPTransportPostHookRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The call ran; hook-level errors are inside the message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPTransportPostHookResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/TransportError"
+          },
+          "500": {
+            "$ref": "#/components/responses/TransportError"
+          }
+        }
+      }
+    },
+    "/api/meridian/plugin/v1/httptransportstreamchunkhook": {
+      "post": {
+        "operationId": "HTTPTransportStreamChunkHook",
+        "x-meridian-hook": "HTTPTransportStreamChunkHook",
+        "summary": "Intercept one streaming chunk before it is written to the client",
+        "description": "Called once per chunk, in order.\n",
+        "tags": [
+          "HTTPTransportPlugin"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HTTPTransportStreamChunkHookRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The call ran; hook-level errors are inside the message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPTransportStreamChunkHookResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/TransportError"
+          },
+          "500": {
+            "$ref": "#/components/responses/TransportError"
+          }
+        }
+      }
+    },
+    "/api/meridian/plugin/v1/prerequesthook": {
+      "post": {
+        "operationId": "PreRequestHook",
+        "x-meridian-hook": "PreRequestHook",
+        "summary": "Routing phase, once per top-level request",
+        "description": "The reply error is non-blocking: the host logs it and continues. Cannot short-circuit.\n",
+        "tags": [
+          "LLMPlugin"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreRequestHookRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The call ran; hook-level errors are inside the message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreRequestHookResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/TransportError"
+          },
+          "500": {
+            "$ref": "#/components/responses/TransportError"
+          }
+        }
+      }
+    },
+    "/api/meridian/plugin/v1/prellmhook": {
+      "post": {
+        "operationId": "PreLLMHook",
+        "x-meridian-hook": "PreLLMHook",
+        "summary": "Before the provider call",
+        "description": "May mutate the request (echoed back) or short-circuit with a response or an error.\n",
+        "tags": [
+          "LLMPlugin"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreLLMHookRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The call ran; hook-level errors are inside the message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreLLMHookResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/TransportError"
+          },
+          "500": {
+            "$ref": "#/components/responses/TransportError"
+          }
+        }
+      }
+    },
+    "/api/meridian/plugin/v1/postllmhook": {
+      "post": {
+        "operationId": "PostLLMHook",
+        "x-meridian-hook": "PostLLMHook",
+        "summary": "After the provider call",
+        "description": "Receives the provider response and/or error; may replace either.\n",
+        "tags": [
+          "LLMPlugin"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostLLMHookRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The call ran; hook-level errors are inside the message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostLLMHookResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/TransportError"
+          },
+          "500": {
+            "$ref": "#/components/responses/TransportError"
+          }
+        }
+      }
+    },
+    "/api/meridian/plugin/v1/premcphook": {
+      "post": {
+        "operationId": "PreMCPHook",
+        "x-meridian-hook": "PreMCPHook",
+        "summary": "Before an MCP call",
+        "description": "May mutate the request (echoed back) or short-circuit with a response or an error.",
+        "tags": [
+          "MCPPlugin"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreMCPHookRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The call ran; hook-level errors are inside the message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreMCPHookResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/TransportError"
+          },
+          "500": {
+            "$ref": "#/components/responses/TransportError"
+          }
+        }
+      }
+    },
+    "/api/meridian/plugin/v1/postmcphook": {
+      "post": {
+        "operationId": "PostMCPHook",
+        "x-meridian-hook": "PostMCPHook",
+        "summary": "After an MCP call",
+        "description": "Receives the MCP response and/or error; may replace either.",
+        "tags": [
+          "MCPPlugin"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostMCPHookRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The call ran; hook-level errors are inside the message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostMCPHookResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/TransportError"
+          },
+          "500": {
+            "$ref": "#/components/responses/TransportError"
+          }
+        }
+      }
+    },
+    "/api/meridian/plugin/v1/premcpconnectionhook": {
+      "post": {
+        "operationId": "PreMCPConnectionHook",
+        "x-meridian-hook": "PreMCPConnectionHook",
+        "summary": "Before an MCP Connect",
+        "description": "Before an MCP Connect; may mutate the request or short-circuit.",
+        "tags": [
+          "MCPConnectionPlugin"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PreMCPConnectionHookRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The call ran; hook-level errors are inside the message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreMCPConnectionHookResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/TransportError"
+          },
+          "500": {
+            "$ref": "#/components/responses/TransportError"
+          }
+        }
+      }
+    },
+    "/api/meridian/plugin/v1/postmcpconnectionhook": {
+      "post": {
+        "operationId": "PostMCPConnectionHook",
+        "x-meridian-hook": "PostMCPConnectionHook",
+        "summary": "After an MCP Connect",
+        "description": "After an MCP Connect; receives the response and/or error.",
+        "tags": [
+          "MCPConnectionPlugin"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostMCPConnectionHookRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The call ran; hook-level errors are inside the message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PostMCPConnectionHookResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/TransportError"
+          },
+          "500": {
+            "$ref": "#/components/responses/TransportError"
+          }
+        }
+      }
+    },
+    "/api/meridian/plugin/v1/inject": {
+      "post": {
+        "operationId": "Inject",
+        "x-meridian-hook": "Inject",
+        "summary": "Receive a completed trace",
+        "description": "Delivers a completed trace to the plugin. The reply error is non-blocking.",
+        "tags": [
+          "ObservabilityPlugin"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InjectRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The call ran; hook-level errors are inside the message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InjectResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/TransportError"
+          },
+          "500": {
+            "$ref": "#/components/responses/TransportError"
+          }
+        }
+      }
+    },
+    "/api/meridian/plugin/v1/marshalconfigforstorage": {
+      "post": {
+        "operationId": "MarshalConfigForStorage",
+        "x-meridian-hook": "MarshalConfigForStorage",
+        "summary": "Convert the config map to its storage form",
+        "description": "Passthrough when not implemented.\n",
+        "tags": [
+          "ConfigMarshallerPlugin"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfigMapRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The call ran; hook-level errors are inside the message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigMapResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/TransportError"
+          },
+          "500": {
+            "$ref": "#/components/responses/TransportError"
+          }
+        }
+      }
+    },
+    "/api/meridian/plugin/v1/redactconfig": {
+      "post": {
+        "operationId": "RedactConfig",
+        "x-meridian-hook": "RedactConfig",
+        "summary": "Mask sensitive values of the config map for API responses",
+        "description": "Passthrough when not implemented.\n",
+        "tags": [
+          "ConfigMarshallerPlugin"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfigMapRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The call ran; hook-level errors are inside the message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigMapResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/TransportError"
+          },
+          "500": {
+            "$ref": "#/components/responses/TransportError"
+          }
+        }
+      }
+    },
+    "/api/meridian/plugin/v1/hookstream": {
+      "get": {
+        "operationId": "HookStream",
+        "x-meridian-hook": "HookStream",
+        "summary": "Open the HookStream (WebSocket upgrade)",
+        "description": "Upgrades the connection to a WebSocket. Afterwards every binary frame\nfrom the host is one `HookStreamRequest` and every binary frame from the\nplugin one `HookStreamResponse` with the same `id`, in order. The host\nkeeps one stream per concurrent caller; there is no interleaving of\nrequests on one stream.\n\nThe `enc` query parameter selects the JSON encoder the plugin should use\nfor its replies.\n",
+        "tags": [
+          "HookStream"
+        ],
+        "parameters": [
+          {
+            "name": "enc",
+            "in": "query",
+            "required": false,
+            "description": "JSON encoding of the frames (informational for the plugin; both are the same JSON)",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "sonic",
+                "std"
+              ],
+              "default": "sonic"
+            }
+          },
+          {
+            "name": "Upgrade",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "websocket"
+              ]
+            }
+          },
+          {
+            "name": "Connection",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Upgrade"
+              ]
+            }
+          },
+          {
+            "name": "Sec-WebSocket-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "Sec-WebSocket-Version",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "13"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "101": {
+            "description": "Switching Protocols; the connection now carries WebSocket binary frames",
+            "headers": {
+              "Sec-WebSocket-Accept": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/TransportError"
+          },
+          "404": {
+            "description": "Wrong path (the plugin only serves the upgrade on this path)"
+          }
+        },
+        "x-websocket": {
+          "description": "One binary frame per message, no fragmentation semantics beyond RFC 6455; client-to-server frames are masked",
+          "messages": {
+            "host-to-plugin": {
+              "$ref": "#/components/schemas/HookStreamRequest"
+            },
+            "plugin-to-host": {
+              "$ref": "#/components/schemas/HookStreamResponse"
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "PluginBearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Optional. The host sends the headers the operator configured for the plugin (for example\nAuthorization: Bearer <token>) on the HookStream upgrade, on POST /capabilities and on the\nhealth/status probes; the plugin decides whether to require them.\n"
+      }
+    },
+    "responses": {
+      "TransportError": {
+        "description": "Transport-level failure (unknown method, malformed message, plugin shutting down). Hook-level errors never use this; they travel inside the response message.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/TransportErrorBody"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "ContextDetails": {
+        "type": "object",
+        "description": "Wire projection of the host's request context (host -> plugin): request id,\ndeadline and the string-valued context entries. The plugin rebuilds a local\ncontext from it and returns its writes as a ContextDelta.\n",
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "description": "Request identifier (also present in ContextDetails.values under the request-id key)"
+          },
+          "deadline_unix_nano": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "description": "Absolute deadline as Unix nanoseconds; 0 = no deadline"
+          },
+          "values": {
+            "type": "object",
+            "description": "Context values whose key is a BifrostContextKey. Any JSON value (string, number, boolean,\narray, object); credentials (direct provider key, session token, raw virtual key) never cross.\n",
+            "additionalProperties": {}
+          },
+          "plugin_scope": {
+            "type": "string",
+            "description": "Name of the plugin the context is scoped to"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ContextDelta": {
+        "type": "object",
+        "description": "Context writes made by the plugin during a call (plugin -> host); the host merges them into the real context",
+        "properties": {
+          "set": {
+            "type": "object",
+            "description": "Keys to set (or overwrite); any JSON value. Reserved host keys are dropped by the host.",
+            "additionalProperties": {}
+          },
+          "clear": {
+            "type": "array",
+            "description": "Keys to remove",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "RequestDetails": {
+        "type": "object",
+        "description": "HTTP transport request envelope: exactly the JSON tags of Meridian's\ncore schemas.HTTPRequest (method, path, headers, query, path_params, body)\nplus host extras. Carried by the HTTPTransport* hooks; LLM/MCP hooks carry\nLLMRequest / MCPRequest instead.\n\nThe body appears in exactly one of two forms: `body` (raw JSON, used when the\nrequest body is valid JSON, copied verbatim) or `body_b64` (base64, used for\nany other content).\n",
+        "properties": {
+          "request_id": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string",
+            "description": "HTTP method",
+            "examples": [
+              "POST"
+            ]
+          },
+          "path": {
+            "type": "string",
+            "description": "URL path",
+            "examples": [
+              "/v1/chat/completions"
+            ]
+          },
+          "headers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "query": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "path_params": {
+            "type": "object",
+            "description": "Path variables extracted from the URL pattern",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "body": {
+            "description": "Request body as raw JSON (any JSON value); present only when the body is valid JSON"
+          },
+          "body_b64": {
+            "type": "string",
+            "contentEncoding": "base64",
+            "description": "Request body, base64-encoded; present only when the body is not valid JSON"
+          },
+          "received_at_unix_nano": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "description": "When the host received the request, Unix nanoseconds"
+          },
+          "client_ip": {
+            "type": "string"
+          },
+          "attempt": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0,
+            "description": "Retry/fallback attempt number, 1-based"
+          }
+        },
+        "not": {
+          "required": [
+            "body",
+            "body_b64"
+          ]
+        },
+        "additionalProperties": false
+      },
+      "ResponseDetails": {
+        "type": "object",
+        "description": "HTTP transport response envelope: exactly the JSON tags of Meridian's core\nschemas.HTTPResponse (status_code, headers, body). `body` is raw JSON when the\nbody is valid JSON, `body_b64` (base64) otherwise.\n",
+        "properties": {
+          "status_code": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "headers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "body": {
+            "description": "Response body as raw JSON (any JSON value); present only when the body is valid JSON"
+          },
+          "body_b64": {
+            "type": "string",
+            "contentEncoding": "base64",
+            "description": "Response body, base64-encoded; present only when the body is not valid JSON"
+          }
+        },
+        "not": {
+          "required": [
+            "body",
+            "body_b64"
+          ]
+        },
+        "additionalProperties": false
+      },
+      "StreamChunk": {
+        "type": "object",
+        "description": "One streamed unit. `chunk` is the JSON of Meridian's core schemas.BifrostStreamChunk\n(its MarshalJSON: the one non-nil embedded stream response for `request_type`, or a\nBifrostError chunk recognisable by `is_bifrost_error`). `index` is host-assigned, 0-based,\nper request.\n",
+        "properties": {
+          "index": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "request_type": {
+            "$ref": "#/components/schemas/RequestType"
+          },
+          "chunk": {
+            "description": "schemas.BifrostStreamChunk JSON (any JSON value)"
+          }
+        },
+        "additionalProperties": false
+      },
+      "BifrostError": {
+        "type": "object",
+        "description": "Meridian's core schemas.BifrostError with its JSON tags verbatim (event_id, type,\nis_bifrost_error, status_code, error, extra_fields). `allow_fallbacks` and\n`stream_control` are json:\"-\" in Go and made explicit here because plugins control them.\nIt is data, not a transport failure.\n",
+        "properties": {
+          "event_id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "is_bifrost_error": {
+            "type": "boolean"
+          },
+          "status_code": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "error": {
+            "$ref": "#/components/schemas/ErrorField"
+          },
+          "extra_fields": {
+            "type": "object",
+            "description": "schemas.BifrostErrorExtraFields (request_type, provider, model_requested, model_used, ...)",
+            "additionalProperties": {}
+          },
+          "allow_fallbacks": {
+            "description": "Boolean; controls fallback behaviour. Absent = the host keeps its own value (default allowed).",
+            "oneOf": [
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "stream_control": {
+            "type": "object",
+            "description": "schemas.StreamControl",
+            "additionalProperties": {}
+          }
+        },
+        "additionalProperties": false
+      },
+      "ErrorField": {
+        "type": "object",
+        "description": "schemas.ErrorField JSON tags verbatim",
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "param": {
+            "description": "Any JSON value"
+          },
+          "event_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RequestType": {
+        "type": "string",
+        "description": "schemas.RequestType; the value names the typed core request/response carried next to it",
+        "enum": [
+          "list_models",
+          "text_completion",
+          "text_completion_stream",
+          "chat_completion",
+          "chat_completion_stream",
+          "responses",
+          "responses_stream",
+          "responses_retrieve",
+          "responses_retrieve_stream",
+          "responses_delete",
+          "responses_cancel",
+          "responses_input_items",
+          "embedding",
+          "speech",
+          "speech_stream",
+          "transcription",
+          "transcription_stream",
+          "image_generation",
+          "image_generation_stream",
+          "image_edit",
+          "image_edit_stream",
+          "image_variation",
+          "video_generation",
+          "video_retrieve",
+          "video_download",
+          "video_delete",
+          "video_list",
+          "video_remix",
+          "batch_create",
+          "batch_list",
+          "batch_retrieve",
+          "batch_cancel",
+          "batch_results",
+          "batch_delete",
+          "file_upload",
+          "file_list",
+          "file_retrieve",
+          "file_delete",
+          "cached_content_create",
+          "cached_content_list",
+          "cached_content_retrieve",
+          "cached_content_update",
+          "cached_content_delete",
+          "file_content",
+          "container_create",
+          "container_list",
+          "container_retrieve",
+          "container_delete",
+          "container_file_create",
+          "container_file_list",
+          "container_file_retrieve",
+          "container_file_content",
+          "container_file_delete",
+          "rerank",
+          "ocr",
+          "count_tokens",
+          "compaction",
+          "mcp_tool_execution",
+          "passthrough",
+          "passthrough_stream",
+          "unknown",
+          "websocket_responses",
+          "realtime",
+          "ping",
+          "list_tools",
+          "chat_tool_call",
+          "responses_tool_call",
+          "execute_tool"
+        ]
+      },
+      "MCPRequestType": {
+        "type": "string",
+        "description": "schemas.MCPRequestType",
+        "enum": [
+          "ping",
+          "list_tools",
+          "chat_tool_call",
+          "responses_tool_call",
+          "execute_tool"
+        ]
+      },
+      "LLMRequest": {
+        "type": "object",
+        "description": "An LLM-side request: `request_type` names the typed core request and `request` is that\nstruct's own JSON (schemas.BifrostChatRequest for chat_completion(_stream), schemas.BifrostEmbeddingRequest\nfor embedding, ...). The untagged union schemas.BifrostRequest is never marshalled.\n",
+        "required": [
+          "request_type"
+        ],
+        "properties": {
+          "request_type": {
+            "$ref": "#/components/schemas/RequestType"
+          },
+          "request": {
+            "description": "JSON of schemas.Bifrost<Type>Request for request_type (any JSON value)",
+            "x-meridian-go-type": "schemas.Bifrost<Type>Request"
+          }
+        },
+        "additionalProperties": false
+      },
+      "LLMResponse": {
+        "type": "object",
+        "description": "An LLM-side response; `response` is the JSON of schemas.Bifrost<Type>Response for `request_type`",
+        "properties": {
+          "request_type": {
+            "$ref": "#/components/schemas/RequestType"
+          },
+          "response": {
+            "description": "JSON of schemas.Bifrost<Type>Response (any JSON value)",
+            "x-meridian-go-type": "schemas.Bifrost<Type>Response"
+          }
+        },
+        "additionalProperties": false
+      },
+      "LLMShortCircuit": {
+        "type": "object",
+        "description": "Mirrors schemas.LLMPluginShortCircuit; exactly one of response / error is expected",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/LLMResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/BifrostError"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MCPRequest": {
+        "type": "object",
+        "description": "An MCP request: the untagged schemas.BifrostMCPRequest crosses as `request_type`, `client_name`\n(snake_case of the Go fields) and `request` = JSON of the typed core MCP request.\n",
+        "required": [
+          "request_type",
+          "client_name"
+        ],
+        "properties": {
+          "request_type": {
+            "$ref": "#/components/schemas/MCPRequestType"
+          },
+          "client_name": {
+            "type": "string"
+          },
+          "request": {
+            "description": "JSON of the typed schemas.BifrostMCP<Type>Request (any JSON value)"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MCPResponse": {
+        "type": "object",
+        "description": "An MCP response; `response` is the JSON of schemas.BifrostMCPResponse",
+        "properties": {
+          "request_type": {
+            "$ref": "#/components/schemas/MCPRequestType"
+          },
+          "response": {
+            "description": "JSON of schemas.BifrostMCPResponse (any JSON value)"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MCPShortCircuit": {
+        "type": "object",
+        "description": "Mirrors schemas.MCPPluginShortCircuit / MCPConnectionShortCircuit",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/MCPResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/BifrostError"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MCPConnectRequest": {
+        "type": "object",
+        "description": "schemas.BifrostMCPConnectRequest (untagged in Go; snake_case of the Go field names)",
+        "required": [
+          "client_name"
+        ],
+        "properties": {
+          "client_name": {
+            "type": "string"
+          },
+          "connection_type": {
+            "type": "string"
+          },
+          "auth_type": {
+            "type": "string"
+          },
+          "connection_string": {
+            "type": "string"
+          },
+          "headers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "extra": {
+            "description": "Remaining fields of the Go struct as a JSON object (any JSON value)"
+          }
+        },
+        "additionalProperties": false
+      },
+      "MCPConnectResponse": {
+        "type": "object",
+        "description": "schemas.BifrostMCPConnectResponse; `response` is its JSON",
+        "properties": {
+          "client_name": {
+            "type": "string"
+          },
+          "response": {
+            "description": "JSON of schemas.BifrostMCPConnectResponse (any JSON value)"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Span": {
+        "type": "object",
+        "description": "schemas.Span",
+        "required": [
+          "span_id",
+          "name"
+        ],
+        "properties": {
+          "span_id": {
+            "type": "string"
+          },
+          "parent_id": {
+            "type": "string"
+          },
+          "trace_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "start_unix_nano": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "end_unix_nano": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "status": {
+            "type": "string"
+          },
+          "status_msg": {
+            "type": "string"
+          },
+          "attributes": {
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SpanEvent"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "SpanEvent": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "time_unix_nano": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "attributes": {
+            "type": "object",
+            "additionalProperties": {}
+          }
+        },
+        "additionalProperties": false
+      },
+      "PluginLogEntry": {
+        "type": "object",
+        "description": "schemas.PluginLogEntry",
+        "required": [
+          "plugin",
+          "level",
+          "message"
+        ],
+        "properties": {
+          "plugin": {
+            "type": "string"
+          },
+          "level": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "time_unix_nano": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "HookError": {
+        "type": "object",
+        "description": "The Go `error` returned by a hook. Absent means nil. Distinct from transport failures.",
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ConfigMap": {
+        "description": "A plugin configuration object: free-form JSON, passed through unchanged.\n",
+        "type": "object",
+        "additionalProperties": true
+      },
+      "Trace": {
+        "type": "object",
+        "description": "schemas.Trace handed to ObservabilityPlugin.Inject (full shape, spans included)",
+        "properties": {
+          "request_id": {
+            "type": "string"
+          },
+          "trace_id": {
+            "type": "string"
+          },
+          "internal_id": {
+            "type": "string"
+          },
+          "parent_id": {
+            "type": "string"
+          },
+          "start_unix_nano": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "end_unix_nano": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "attributes": {
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "request_headers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          },
+          "plugin_logs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PluginLogEntry"
+            }
+          },
+          "spans": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Span"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "HookName": {
+        "type": "string",
+        "description": "Name of a hook (an operation of this document)",
+        "enum": [
+          "HTTPTransportPreAuthHook",
+          "HTTPTransportPreHook",
+          "HTTPTransportPostHook",
+          "HTTPTransportStreamChunkHook",
+          "PreRequestHook",
+          "PreLLMHook",
+          "PostLLMHook",
+          "PreMCPHook",
+          "PostMCPHook",
+          "PreMCPConnectionHook",
+          "PostMCPConnectionHook",
+          "Inject",
+          "MarshalConfigForStorage",
+          "RedactConfig"
+        ]
+      },
+      "TransportErrorBody": {
+        "type": "object",
+        "description": "Body of a transport-level failure (the plugin could not run the call at all)",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CapabilitiesRequest": {
+        "type": "object",
+        "description": "Empty request",
+        "additionalProperties": false
+      },
+      "CapabilitiesResponse": {
+        "type": "object",
+        "description": "Which hooks the plugin implements and its protocol version",
+        "required": [
+          "hooks",
+          "protocol_version"
+        ],
+        "properties": {
+          "hooks": {
+            "type": "array",
+            "description": "Implemented hooks; the host never calls a hook that is not listed",
+            "items": {
+              "$ref": "#/components/schemas/HookName"
+            },
+            "uniqueItems": true
+          },
+          "protocol_version": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1,
+            "description": "Wire protocol version; the host refuses anything but the version it speaks (currently 1)"
+          },
+          "stream_supported": {
+            "type": "boolean",
+            "description": "True when the plugin serves HookStream"
+          }
+        },
+        "additionalProperties": false
+      },
+      "InitRequest": {
+        "type": "object",
+        "description": "Plugin configuration, passed once after Capabilities",
+        "properties": {
+          "config": {
+            "$ref": "#/components/schemas/ConfigMap"
+          }
+        },
+        "additionalProperties": false
+      },
+      "InitResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/HookError"
+          }
+        },
+        "additionalProperties": false
+      },
+      "GetNameRequest": {
+        "type": "object",
+        "description": "Empty request",
+        "additionalProperties": false
+      },
+      "GetNameResponse": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The plugin's system identifier",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "CleanupRequest": {
+        "type": "object",
+        "description": "Empty request; sent once before the host stops the plugin process",
+        "additionalProperties": false
+      },
+      "CleanupResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/HookError"
+          }
+        },
+        "additionalProperties": false
+      },
+      "HealthResponse": {
+        "type": "object",
+        "description": "Mirrors Meridian's /health; 200 for ok/degraded, 503 for unavailable",
+        "required": [
+          "status"
+        ],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "degraded",
+              "unavailable"
+            ]
+          },
+          "components": {
+            "type": "object",
+            "description": "Component name → \"ok\" or a reason",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "StatusResponse": {
+        "type": "object",
+        "description": "Identity, capabilities and counters of the plugin process",
+        "required": [
+          "name",
+          "protocol_version",
+          "hooks"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "version": {
+            "type": "string",
+            "description": "Build version of the plugin, free-form"
+          },
+          "protocol_version": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 1
+          },
+          "hooks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HookName"
+            },
+            "uniqueItems": true
+          },
+          "stream_supported": {
+            "type": "boolean"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "uptime_seconds": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "stats": {
+            "$ref": "#/components/schemas/StatusStats"
+          }
+        },
+        "additionalProperties": false
+      },
+      "StatusStats": {
+        "type": "object",
+        "properties": {
+          "calls_total": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "errors_total": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "open_streams": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "HTTPTransportPreHookRequest": {
+        "type": "object",
+        "description": "Input of HTTPTransportPreAuthHook and HTTPTransportPreHook",
+        "required": [
+          "ctx",
+          "request"
+        ],
+        "properties": {
+          "ctx": {
+            "$ref": "#/components/schemas/ContextDetails"
+          },
+          "request": {
+            "$ref": "#/components/schemas/RequestDetails"
+          }
+        },
+        "additionalProperties": false
+      },
+      "HTTPTransportPreHookResponse": {
+        "type": "object",
+        "description": "Output of the transport pre-hooks. `response` set = short-circuit with that\nresponse; `request` echoes the (possibly mutated) request so the host can\napply in-place semantics; `ctx` carries context writes; `error` is the\nhook's Go error.\n",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/ResponseDetails"
+          },
+          "error": {
+            "$ref": "#/components/schemas/HookError"
+          },
+          "ctx": {
+            "$ref": "#/components/schemas/ContextDelta"
+          },
+          "request": {
+            "$ref": "#/components/schemas/RequestDetails"
+          },
+          "body_changed": {
+            "type": "boolean",
+            "default": false,
+            "description": "false (or absent): the host keeps the request/response/error/chunk it already holds and does not\ndecode any payload carried by this reply; omit the payload to save bytes. true: the payload\nproperties of this reply replace the host's objects in place; an absent property then means nil\n(empty body, recovered error, dropped chunk). Transport metadata of an echoed request/response\n(method, path, headers, query, path_params, status_code) is applied whenever the echo object is\npresent, independent of this flag.\n"
+          }
+        },
+        "additionalProperties": false
+      },
+      "HTTPTransportPostHookRequest": {
+        "type": "object",
+        "required": [
+          "ctx",
+          "request",
+          "response"
+        ],
+        "properties": {
+          "ctx": {
+            "$ref": "#/components/schemas/ContextDetails"
+          },
+          "request": {
+            "$ref": "#/components/schemas/RequestDetails"
+          },
+          "response": {
+            "$ref": "#/components/schemas/ResponseDetails"
+          }
+        },
+        "additionalProperties": false
+      },
+      "HTTPTransportPostHookResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/HookError"
+          },
+          "ctx": {
+            "$ref": "#/components/schemas/ContextDelta"
+          },
+          "response": {
+            "$ref": "#/components/schemas/ResponseDetails",
+            "description": "The (possibly mutated) response echoed back"
+          },
+          "body_changed": {
+            "type": "boolean",
+            "default": false,
+            "description": "false (or absent): the host keeps the request/response/error/chunk it already holds and does not\ndecode any payload carried by this reply; omit the payload to save bytes. true: the payload\nproperties of this reply replace the host's objects in place; an absent property then means nil\n(empty body, recovered error, dropped chunk). Transport metadata of an echoed request/response\n(method, path, headers, query, path_params, status_code) is applied whenever the echo object is\npresent, independent of this flag.\n"
+          }
+        },
+        "additionalProperties": false
+      },
+      "HTTPTransportStreamChunkHookRequest": {
+        "type": "object",
+        "required": [
+          "ctx",
+          "request",
+          "chunk"
+        ],
+        "properties": {
+          "ctx": {
+            "$ref": "#/components/schemas/ContextDetails"
+          },
+          "request": {
+            "$ref": "#/components/schemas/RequestDetails"
+          },
+          "chunk": {
+            "$ref": "#/components/schemas/StreamChunk"
+          }
+        },
+        "additionalProperties": false
+      },
+      "HTTPTransportStreamChunkHookResponse": {
+        "type": "object",
+        "properties": {
+          "chunk": {
+            "$ref": "#/components/schemas/StreamChunk",
+            "description": "The (possibly mutated) chunk; absent with body_changed=true = drop the chunk"
+          },
+          "error": {
+            "$ref": "#/components/schemas/HookError"
+          },
+          "ctx": {
+            "$ref": "#/components/schemas/ContextDelta"
+          },
+          "body_changed": {
+            "type": "boolean",
+            "default": false,
+            "description": "false (or absent): the host keeps the request/response/error/chunk it already holds and does not\ndecode any payload carried by this reply; omit the payload to save bytes. true: the payload\nproperties of this reply replace the host's objects in place; an absent property then means nil\n(empty body, recovered error, dropped chunk). Transport metadata of an echoed request/response\n(method, path, headers, query, path_params, status_code) is applied whenever the echo object is\npresent, independent of this flag.\n"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PreRequestHookRequest": {
+        "type": "object",
+        "required": [
+          "ctx",
+          "request"
+        ],
+        "properties": {
+          "ctx": {
+            "$ref": "#/components/schemas/ContextDetails"
+          },
+          "request": {
+            "$ref": "#/components/schemas/LLMRequest"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PreRequestHookResponse": {
+        "type": "object",
+        "description": "PreRequestHook cannot short-circuit; its error is non-blocking (logged by the host)",
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/HookError"
+          },
+          "ctx": {
+            "$ref": "#/components/schemas/ContextDelta"
+          },
+          "request": {
+            "$ref": "#/components/schemas/LLMRequest"
+          },
+          "body_changed": {
+            "type": "boolean",
+            "default": false,
+            "description": "false (or absent): the host keeps the request/response/error/chunk it already holds and does not\ndecode any payload carried by this reply; omit the payload to save bytes. true: the payload\nproperties of this reply replace the host's objects in place; an absent property then means nil\n(empty body, recovered error, dropped chunk). Transport metadata of an echoed request/response\n(method, path, headers, query, path_params, status_code) is applied whenever the echo object is\npresent, independent of this flag.\n"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PreLLMHookRequest": {
+        "type": "object",
+        "required": [
+          "ctx",
+          "request"
+        ],
+        "properties": {
+          "ctx": {
+            "$ref": "#/components/schemas/ContextDetails"
+          },
+          "request": {
+            "$ref": "#/components/schemas/LLMRequest"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PreLLMHookResponse": {
+        "type": "object",
+        "description": "`request` is the (possibly mutated) request, applied only when `body_changed` is true.\n`short_circuit` stops the pipeline with a response or an error.\n",
+        "properties": {
+          "request": {
+            "$ref": "#/components/schemas/LLMRequest"
+          },
+          "short_circuit": {
+            "$ref": "#/components/schemas/LLMShortCircuit"
+          },
+          "error": {
+            "$ref": "#/components/schemas/HookError"
+          },
+          "ctx": {
+            "$ref": "#/components/schemas/ContextDelta"
+          },
+          "body_changed": {
+            "type": "boolean",
+            "default": false,
+            "description": "false (or absent): the host keeps the request/response/error/chunk it already holds and does not\ndecode any payload carried by this reply; omit the payload to save bytes. true: the payload\nproperties of this reply replace the host's objects in place; an absent property then means nil\n(empty body, recovered error, dropped chunk). Transport metadata of an echoed request/response\n(method, path, headers, query, path_params, status_code) is applied whenever the echo object is\npresent, independent of this flag.\n"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PostLLMHookRequest": {
+        "type": "object",
+        "description": "Post-hooks receive the provider response and/or the provider error; no request (the LLMPlugin signature)",
+        "required": [
+          "ctx"
+        ],
+        "properties": {
+          "ctx": {
+            "$ref": "#/components/schemas/ContextDetails"
+          },
+          "response": {
+            "$ref": "#/components/schemas/LLMResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/BifrostError"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PostLLMHookResponse": {
+        "type": "object",
+        "description": "With body_changed=true BOTH response and plugin_error replace the host's (absent = nil, i.e. a recovered error)",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/LLMResponse"
+          },
+          "plugin_error": {
+            "$ref": "#/components/schemas/BifrostError",
+            "description": "The (possibly replaced) provider error"
+          },
+          "error": {
+            "$ref": "#/components/schemas/HookError"
+          },
+          "ctx": {
+            "$ref": "#/components/schemas/ContextDelta"
+          },
+          "body_changed": {
+            "type": "boolean",
+            "default": false,
+            "description": "false (or absent): the host keeps the request/response/error/chunk it already holds and does not\ndecode any payload carried by this reply; omit the payload to save bytes. true: the payload\nproperties of this reply replace the host's objects in place; an absent property then means nil\n(empty body, recovered error, dropped chunk). Transport metadata of an echoed request/response\n(method, path, headers, query, path_params, status_code) is applied whenever the echo object is\npresent, independent of this flag.\n"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PreMCPHookRequest": {
+        "type": "object",
+        "required": [
+          "ctx",
+          "request"
+        ],
+        "properties": {
+          "ctx": {
+            "$ref": "#/components/schemas/ContextDetails"
+          },
+          "request": {
+            "$ref": "#/components/schemas/MCPRequest"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PreMCPHookResponse": {
+        "type": "object",
+        "properties": {
+          "request": {
+            "$ref": "#/components/schemas/MCPRequest"
+          },
+          "short_circuit": {
+            "$ref": "#/components/schemas/MCPShortCircuit"
+          },
+          "error": {
+            "$ref": "#/components/schemas/HookError"
+          },
+          "ctx": {
+            "$ref": "#/components/schemas/ContextDelta"
+          },
+          "body_changed": {
+            "type": "boolean",
+            "default": false,
+            "description": "false = keep the host's request (payload not decoded); true = `request` replaces it"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PostMCPHookRequest": {
+        "type": "object",
+        "required": [
+          "ctx"
+        ],
+        "properties": {
+          "ctx": {
+            "$ref": "#/components/schemas/ContextDetails"
+          },
+          "response": {
+            "$ref": "#/components/schemas/MCPResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/BifrostError"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PostMCPHookResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/MCPResponse"
+          },
+          "plugin_error": {
+            "$ref": "#/components/schemas/BifrostError"
+          },
+          "error": {
+            "$ref": "#/components/schemas/HookError"
+          },
+          "ctx": {
+            "$ref": "#/components/schemas/ContextDelta"
+          },
+          "body_changed": {
+            "type": "boolean",
+            "default": false,
+            "description": "false = keep the host's response and error; true = both are replaced by this reply (absent = nil)"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PreMCPConnectionHookRequest": {
+        "type": "object",
+        "required": [
+          "ctx",
+          "request"
+        ],
+        "properties": {
+          "ctx": {
+            "$ref": "#/components/schemas/ContextDetails"
+          },
+          "request": {
+            "$ref": "#/components/schemas/MCPConnectRequest"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PreMCPConnectionHookResponse": {
+        "type": "object",
+        "properties": {
+          "request": {
+            "$ref": "#/components/schemas/MCPConnectRequest"
+          },
+          "short_circuit": {
+            "$ref": "#/components/schemas/MCPShortCircuit"
+          },
+          "error": {
+            "$ref": "#/components/schemas/HookError"
+          },
+          "ctx": {
+            "$ref": "#/components/schemas/ContextDelta"
+          },
+          "body_changed": {
+            "type": "boolean",
+            "default": false,
+            "description": "false = keep the host's request; true = the mutable fields (connection_string, headers) are replaced"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PostMCPConnectionHookRequest": {
+        "type": "object",
+        "required": [
+          "ctx"
+        ],
+        "properties": {
+          "ctx": {
+            "$ref": "#/components/schemas/ContextDetails"
+          },
+          "response": {
+            "$ref": "#/components/schemas/MCPConnectResponse"
+          },
+          "error": {
+            "$ref": "#/components/schemas/BifrostError"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PostMCPConnectionHookResponse": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "$ref": "#/components/schemas/MCPConnectResponse"
+          },
+          "plugin_error": {
+            "$ref": "#/components/schemas/BifrostError"
+          },
+          "error": {
+            "$ref": "#/components/schemas/HookError"
+          },
+          "ctx": {
+            "$ref": "#/components/schemas/ContextDelta"
+          },
+          "body_changed": {
+            "type": "boolean",
+            "default": false,
+            "description": "false = keep the host's response and error; true = both are replaced by this reply (absent = nil)"
+          }
+        },
+        "additionalProperties": false
+      },
+      "InjectRequest": {
+        "type": "object",
+        "description": "A completed trace. `ctx` carries only request id and deadline (Inject takes a plain context)",
+        "required": [
+          "ctx",
+          "trace"
+        ],
+        "properties": {
+          "ctx": {
+            "$ref": "#/components/schemas/ContextDetails"
+          },
+          "trace": {
+            "$ref": "#/components/schemas/Trace"
+          }
+        },
+        "additionalProperties": false
+      },
+      "InjectResponse": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/HookError"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ConfigMapRequest": {
+        "type": "object",
+        "properties": {
+          "config": {
+            "$ref": "#/components/schemas/ConfigMap"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ConfigMapResponse": {
+        "type": "object",
+        "properties": {
+          "config": {
+            "$ref": "#/components/schemas/ConfigMap"
+          },
+          "error": {
+            "$ref": "#/components/schemas/HookError"
+          }
+        },
+        "additionalProperties": false
+      },
+      "HookStreamRequest": {
+        "type": "object",
+        "description": "One host -> plugin message on the stream. `id` is echoed in the reply.\nExactly one payload property is present and `call` names it. The lifecycle\ncalls use the same envelope.\n",
+        "required": [
+          "id",
+          "call"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 1,
+            "description": "Per-stream sequence number, unique among in-flight requests on this stream"
+          },
+          "call": {
+            "type": "string",
+            "description": "Name of the call carried in this message",
+            "enum": [
+              "Capabilities",
+              "Init",
+              "GetName",
+              "Cleanup",
+              "HTTPTransportPreAuthHook",
+              "HTTPTransportPreHook",
+              "HTTPTransportPostHook",
+              "HTTPTransportStreamChunkHook",
+              "PreRequestHook",
+              "PreLLMHook",
+              "PostLLMHook",
+              "PreMCPHook",
+              "PostMCPHook",
+              "PreMCPConnectionHook",
+              "PostMCPConnectionHook",
+              "Inject",
+              "MarshalConfigForStorage",
+              "RedactConfig"
+            ]
+          },
+          "capabilities": {
+            "$ref": "#/components/schemas/CapabilitiesRequest"
+          },
+          "init": {
+            "$ref": "#/components/schemas/InitRequest"
+          },
+          "get_name": {
+            "$ref": "#/components/schemas/GetNameRequest"
+          },
+          "cleanup": {
+            "$ref": "#/components/schemas/CleanupRequest"
+          },
+          "http_transport_pre_auth_hook": {
+            "$ref": "#/components/schemas/HTTPTransportPreHookRequest"
+          },
+          "http_transport_pre_hook": {
+            "$ref": "#/components/schemas/HTTPTransportPreHookRequest"
+          },
+          "http_transport_post_hook": {
+            "$ref": "#/components/schemas/HTTPTransportPostHookRequest"
+          },
+          "http_transport_stream_chunk_hook": {
+            "$ref": "#/components/schemas/HTTPTransportStreamChunkHookRequest"
+          },
+          "pre_request_hook": {
+            "$ref": "#/components/schemas/PreRequestHookRequest"
+          },
+          "pre_llm_hook": {
+            "$ref": "#/components/schemas/PreLLMHookRequest"
+          },
+          "post_llm_hook": {
+            "$ref": "#/components/schemas/PostLLMHookRequest"
+          },
+          "pre_mcp_hook": {
+            "$ref": "#/components/schemas/PreMCPHookRequest"
+          },
+          "post_mcp_hook": {
+            "$ref": "#/components/schemas/PostMCPHookRequest"
+          },
+          "pre_mcp_connection_hook": {
+            "$ref": "#/components/schemas/PreMCPConnectionHookRequest"
+          },
+          "post_mcp_connection_hook": {
+            "$ref": "#/components/schemas/PostMCPConnectionHookRequest"
+          },
+          "inject": {
+            "$ref": "#/components/schemas/InjectRequest"
+          },
+          "marshal_config_for_storage": {
+            "$ref": "#/components/schemas/ConfigMapRequest"
+          },
+          "redact_config": {
+            "$ref": "#/components/schemas/ConfigMapRequest"
+          }
+        },
+        "additionalProperties": false,
+        "oneOf": [
+          {
+            "required": [
+              "capabilities"
+            ]
+          },
+          {
+            "required": [
+              "init"
+            ]
+          },
+          {
+            "required": [
+              "get_name"
+            ]
+          },
+          {
+            "required": [
+              "cleanup"
+            ]
+          },
+          {
+            "required": [
+              "http_transport_pre_auth_hook"
+            ]
+          },
+          {
+            "required": [
+              "http_transport_pre_hook"
+            ]
+          },
+          {
+            "required": [
+              "http_transport_post_hook"
+            ]
+          },
+          {
+            "required": [
+              "http_transport_stream_chunk_hook"
+            ]
+          },
+          {
+            "required": [
+              "pre_request_hook"
+            ]
+          },
+          {
+            "required": [
+              "pre_llm_hook"
+            ]
+          },
+          {
+            "required": [
+              "post_llm_hook"
+            ]
+          },
+          {
+            "required": [
+              "pre_mcp_hook"
+            ]
+          },
+          {
+            "required": [
+              "post_mcp_hook"
+            ]
+          },
+          {
+            "required": [
+              "pre_mcp_connection_hook"
+            ]
+          },
+          {
+            "required": [
+              "post_mcp_connection_hook"
+            ]
+          },
+          {
+            "required": [
+              "inject"
+            ]
+          },
+          {
+            "required": [
+              "marshal_config_for_storage"
+            ]
+          },
+          {
+            "required": [
+              "redact_config"
+            ]
+          }
+        ]
+      },
+      "HookStreamResponse": {
+        "type": "object",
+        "description": "One plugin -> host message. `id` matches the request. Either exactly one\npayload property is present (the call's response message) or\n`transport_error` explains why the call could not be dispatched at all\n(unknown call, decode failure, plugin shutting down).\n",
+        "required": [
+          "id"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "call": {
+            "type": "string",
+            "description": "Name of the call this message answers (informational)"
+          },
+          "transport_error": {
+            "type": "string",
+            "minLength": 1
+          },
+          "capabilities": {
+            "$ref": "#/components/schemas/CapabilitiesResponse"
+          },
+          "init": {
+            "$ref": "#/components/schemas/InitResponse"
+          },
+          "get_name": {
+            "$ref": "#/components/schemas/GetNameResponse"
+          },
+          "cleanup": {
+            "$ref": "#/components/schemas/CleanupResponse"
+          },
+          "http_transport_pre_auth_hook": {
+            "$ref": "#/components/schemas/HTTPTransportPreHookResponse"
+          },
+          "http_transport_pre_hook": {
+            "$ref": "#/components/schemas/HTTPTransportPreHookResponse"
+          },
+          "http_transport_post_hook": {
+            "$ref": "#/components/schemas/HTTPTransportPostHookResponse"
+          },
+          "http_transport_stream_chunk_hook": {
+            "$ref": "#/components/schemas/HTTPTransportStreamChunkHookResponse"
+          },
+          "pre_request_hook": {
+            "$ref": "#/components/schemas/PreRequestHookResponse"
+          },
+          "pre_llm_hook": {
+            "$ref": "#/components/schemas/PreLLMHookResponse"
+          },
+          "post_llm_hook": {
+            "$ref": "#/components/schemas/PostLLMHookResponse"
+          },
+          "pre_mcp_hook": {
+            "$ref": "#/components/schemas/PreMCPHookResponse"
+          },
+          "post_mcp_hook": {
+            "$ref": "#/components/schemas/PostMCPHookResponse"
+          },
+          "pre_mcp_connection_hook": {
+            "$ref": "#/components/schemas/PreMCPConnectionHookResponse"
+          },
+          "post_mcp_connection_hook": {
+            "$ref": "#/components/schemas/PostMCPConnectionHookResponse"
+          },
+          "inject": {
+            "$ref": "#/components/schemas/InjectResponse"
+          },
+          "marshal_config_for_storage": {
+            "$ref": "#/components/schemas/ConfigMapResponse"
+          },
+          "redact_config": {
+            "$ref": "#/components/schemas/ConfigMapResponse"
+          }
+        },
+        "additionalProperties": false,
+        "oneOf": [
+          {
+            "required": [
+              "transport_error"
+            ]
+          },
+          {
+            "required": [
+              "capabilities"
+            ]
+          },
+          {
+            "required": [
+              "init"
+            ]
+          },
+          {
+            "required": [
+              "get_name"
+            ]
+          },
+          {
+            "required": [
+              "cleanup"
+            ]
+          },
+          {
+            "required": [
+              "http_transport_pre_auth_hook"
+            ]
+          },
+          {
+            "required": [
+              "http_transport_pre_hook"
+            ]
+          },
+          {
+            "required": [
+              "http_transport_post_hook"
+            ]
+          },
+          {
+            "required": [
+              "http_transport_stream_chunk_hook"
+            ]
+          },
+          {
+            "required": [
+              "pre_request_hook"
+            ]
+          },
+          {
+            "required": [
+              "pre_llm_hook"
+            ]
+          },
+          {
+            "required": [
+              "post_llm_hook"
+            ]
+          },
+          {
+            "required": [
+              "pre_mcp_hook"
+            ]
+          },
+          {
+            "required": [
+              "post_mcp_hook"
+            ]
+          },
+          {
+            "required": [
+              "pre_mcp_connection_hook"
+            ]
+          },
+          {
+            "required": [
+              "post_mcp_connection_hook"
+            ]
+          },
+          {
+            "required": [
+              "inject"
+            ]
+          },
+          {
+            "required": [
+              "marshal_config_for_storage"
+            ]
+          },
+          {
+            "required": [
+              "redact_config"
+            ]
+          }
+        ]
+      }
+    }
+  }
+}
