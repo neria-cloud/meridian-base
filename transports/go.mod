@@ -16,16 +16,16 @@ require (
 	github.com/klauspost/compress v1.18.6
 	github.com/mark3labs/mcp-go v0.43.2
 	github.com/neria-cloud/meridian-base/core v1.7.10
-	github.com/neria-cloud/meridian-base/framework v1.5.10
-	github.com/neria-cloud/meridian-base/plugins/compat v0.1.36
-	github.com/neria-cloud/meridian-base/plugins/governance v1.6.14
-	github.com/neria-cloud/meridian-base/plugins/logging v1.6.10
-	github.com/neria-cloud/meridian-base/plugins/maxim v1.6.37
-	github.com/neria-cloud/meridian-base/plugins/modelcatalogresolver v1.0.18
-	github.com/neria-cloud/meridian-base/plugins/otel v1.4.9
-	github.com/neria-cloud/meridian-base/plugins/prompts v1.0.37
-	github.com/neria-cloud/meridian-base/plugins/semanticcache v1.5.37
-	github.com/neria-cloud/meridian-base/plugins/telemetry v1.5.37
+	github.com/neria-cloud/meridian-base/framework v1.5.11-mrn.1
+	github.com/neria-cloud/meridian-base/plugins/compat v0.1.37-mrn.1
+	github.com/neria-cloud/meridian-base/plugins/governance v1.6.15-mrn.1
+	github.com/neria-cloud/meridian-base/plugins/logging v1.6.11-mrn.1
+	github.com/neria-cloud/meridian-base/plugins/maxim v1.6.38-mrn.1
+	github.com/neria-cloud/meridian-base/plugins/modelcatalogresolver v1.0.19-mrn.1
+	github.com/neria-cloud/meridian-base/plugins/otel v1.4.10-mrn.1
+	github.com/neria-cloud/meridian-base/plugins/prompts v1.0.38-mrn.1
+	github.com/neria-cloud/meridian-base/plugins/semanticcache v1.5.38-mrn.1
+	github.com/neria-cloud/meridian-base/plugins/telemetry v1.5.38-mrn.1
 	github.com/pion/rtcp v1.2.16
 	github.com/pion/webrtc/v4 v4.2.9
 	github.com/prometheus/client_golang v1.23.2
