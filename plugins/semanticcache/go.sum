@@ -183,8 +183,8 @@ github.com/mattn/go-isatty v0.0.20 h1:xfD0iDuEKnDkl03q4limB+vH+GxLEtL/jb4xVJSWWE
 github.com/mattn/go-isatty v0.0.20/go.mod h1:W+V8PltTTMOvKvAeJH7IuucS94S2C6jfK/D7dTCTo3Y=
 github.com/neria-cloud/meridian-base/core v1.7.10 h1:gldLdbOnN9sRQ4jZ9sXUounN2rJUyBEh3ygGL180UWU=
 github.com/neria-cloud/meridian-base/core v1.7.10/go.mod h1:jPL9cGR2eW8UO1ljxtxEqlnkHE1/jauBncSHn1WafoA=
-github.com/neria-cloud/meridian-base/framework v1.5.10 h1:M0RSa6rwflSIu0H1grEHHy3ag7LhvcTEOe2V9FuPWt8=
-github.com/neria-cloud/meridian-base/framework v1.5.10/go.mod h1:AIIkvdyNWHG0dOFp/o4N8bCY10NW/mB/5G+9NP0/h80=
+github.com/neria-cloud/meridian-base/framework v1.5.11-mrn.1 h1:/fr+ORAOazG9rwHPgI4Lksp4X17Z6fQs4qpkd7WFiw8=
+github.com/neria-cloud/meridian-base/framework v1.5.11-mrn.1/go.mod h1:AIIkvdyNWHG0dOFp/o4N8bCY10NW/mB/5G+9NP0/h80=
 github.com/neria-cloud/meridian-base/plugins/mocker v1.5.19 h1:Actlp5Ea57wcCFSKbXSC3hRqbief9WwmYM90n8Pik3Y=
 github.com/neria-cloud/meridian-base/plugins/mocker v1.5.19/go.mod h1:zYpY3IQ8sazCUozoTDwHuelylR6nKYAZbITkq2bsCNE=
 github.com/oapi-codegen/runtime v1.1.1 h1:EXLHh0DXIJnWhdRPN2w4MXAzFyE4CskzhNLUmtpMYro=
