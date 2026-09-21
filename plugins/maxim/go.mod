@@ -5,7 +5,7 @@ go 1.26.5
 require (
 	github.com/maximhq/maxim-go v0.2.1
 	github.com/neria-cloud/meridian-base/core v1.7.10
-	github.com/neria-cloud/meridian-base/framework v1.5.10
+	github.com/neria-cloud/meridian-base/framework v1.5.11-mrn.1
 )
 
 require (
