@@ -53,9 +53,9 @@ MCPClientCreateRequest:
   discriminator:
     propertyName: connection_type
     mapping:
-      http: '#/MCPClientCreateRequestHTTP'
-      sse: '#/MCPClientCreateRequestSSE'
-      stdio: '#/MCPClientCreateRequestSTDIO'
+      http: '#/components/schemas/MCPClientCreateRequestHTTP'
+      sse: '#/components/schemas/MCPClientCreateRequestSSE'
+      stdio: '#/components/schemas/MCPClientCreateRequestSTDIO'
   description: |
     MCP client configuration for creating a new client (tool_pricing not available at creation).
     The schema varies based on connection_type:

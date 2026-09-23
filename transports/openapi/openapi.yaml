@@ -1486,6 +1486,12 @@ components:
       $ref: './schemas/management/mcp.yaml#/MCPClient'
     MCPClientConfig:
       $ref: './schemas/management/mcp.yaml#/MCPClientConfig'
+    MCPClientCreateRequestHTTP:
+      $ref: './schemas/management/mcp.yaml#/MCPClientCreateRequestHTTP'
+    MCPClientCreateRequestSSE:
+      $ref: './schemas/management/mcp.yaml#/MCPClientCreateRequestSSE'
+    MCPClientCreateRequestSTDIO:
+      $ref: './schemas/management/mcp.yaml#/MCPClientCreateRequestSTDIO'
     ExecuteToolRequest:
       $ref: './schemas/management/mcp.yaml#/ExecuteToolRequest'
     MCPAuthType:
