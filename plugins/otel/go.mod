@@ -4,7 +4,7 @@ go 1.26.5
 
 require (
 	github.com/neria-cloud/meridian-base/core v1.7.10
-	github.com/neria-cloud/meridian-base/framework v1.5.10
+	github.com/neria-cloud/meridian-base/framework v1.5.11-mrn.1
 	go.opentelemetry.io/otel v1.43.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.43.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.43.0
