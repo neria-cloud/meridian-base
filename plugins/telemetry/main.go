@@ -264,7 +264,7 @@ var defaultBifrostLabelNames = []string{
 	"business_unit_name",
 }
 
-// defaultMCPLabelNames is the label set for bifrost_mcp_* metrics: the MCP semconv
+// defaultMCPLabelNames is the label set for meridian_mcp_* metrics: the MCP semconv
 // dimensions available in the hook plus the governance identity. No network_transport
 // (core stamps it on the span, not context) and no provider/model.
 var defaultMCPLabelNames = []string{
@@ -372,7 +372,7 @@ func Init(config *Config, pricingManager *modelcatalog.ModelCatalog, logger sche
 	// Bifrost Upstream Metrics
 	bifrostUpstreamRequestsTotal := factory.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "bifrost_upstream_requests_total",
+			Name: "meridian_upstream_requests_total",
 			Help: "Total number of requests forwarded to upstream providers by Meridian.",
 		},
 		append(defaultBifrostLabels, filteredCustomLabels...),
@@ -380,7 +380,7 @@ func Init(config *Config, pricingManager *modelcatalog.ModelCatalog, logger sche
 
 	bifrostUpstreamLatencySeconds := factory.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "bifrost_upstream_latency_seconds",
+			Name:    "meridian_upstream_latency_seconds",
 			Help:    "Latency of requests forwarded to upstream providers by Meridian.",
 			Buckets: upstreamLatencyBuckets, // Extended range for AI model inference times
 		},
@@ -389,7 +389,7 @@ func Init(config *Config, pricingManager *modelcatalog.ModelCatalog, logger sche
 
 	bifrostSuccessRequestsTotal := factory.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "bifrost_success_requests_total",
+			Name: "meridian_success_requests_total",
 			Help: "Total number of successful requests forwarded to upstream providers by Meridian.",
 		},
 		append(defaultBifrostLabels, filteredCustomLabels...),
@@ -397,7 +397,7 @@ func Init(config *Config, pricingManager *modelcatalog.ModelCatalog, logger sche
 
 	bifrostErrorRequestsTotal := factory.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "bifrost_error_requests_total",
+			Name: "meridian_error_requests_total",
 			Help: "Total number of error requests forwarded to upstream providers by Meridian.",
 		},
 		append(append(defaultBifrostLabels, "status_code"), filteredCustomLabels...),
@@ -405,7 +405,7 @@ func Init(config *Config, pricingManager *modelcatalog.ModelCatalog, logger sche
 
 	bifrostInputTokensTotal := factory.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "bifrost_input_tokens_total",
+			Name: "meridian_input_tokens_total",
 			Help: "Total number of input tokens forwarded to upstream providers by Meridian.",
 		},
 		append(defaultBifrostLabels, filteredCustomLabels...),
@@ -413,7 +413,7 @@ func Init(config *Config, pricingManager *modelcatalog.ModelCatalog, logger sche
 
 	bifrostOutputTokensTotal := factory.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "bifrost_output_tokens_total",
+			Name: "meridian_output_tokens_total",
 			Help: "Total number of output tokens forwarded to upstream providers by Meridian.",
 		},
 		append(defaultBifrostLabels, filteredCustomLabels...),
@@ -421,17 +421,17 @@ func Init(config *Config, pricingManager *modelcatalog.ModelCatalog, logger sche
 
 	bifrostCacheHitsTotal := factory.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "bifrost_cache_hits_total",
+			Name: "meridian_cache_hits_total",
 			Help: "Total number of cache hits forwarded to upstream providers by Meridian, separated by cache type (direct/semantic).",
 		},
 		append(append(defaultBifrostLabels, "cache_type"), filteredCustomLabels...),
 	)
 
 	// Provider-side prompt cache tokens (Anthropic/OpenAI/Gemini prompt caching). Distinct
-	// from bifrost_cache_hits_total, which counts Bifrost's own semantic-cache hits.
+	// from meridian_cache_hits_total, which counts Bifrost's own semantic-cache hits.
 	bifrostCacheReadInputTokensTotal := factory.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "bifrost_cache_read_input_tokens_total",
+			Name: "meridian_cache_read_input_tokens_total",
 			Help: "Total provider-side prompt-cache read (cached) input tokens. Billed at a reduced rate by the provider.",
 		},
 		append(defaultBifrostLabels, filteredCustomLabels...),
@@ -439,7 +439,7 @@ func Init(config *Config, pricingManager *modelcatalog.ModelCatalog, logger sche
 
 	bifrostCacheWriteInputTokensTotal := factory.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "bifrost_cache_write_input_tokens_total",
+			Name: "meridian_cache_write_input_tokens_total",
 			Help: "Total provider-side prompt-cache creation (write) input tokens.",
 		},
 		append(defaultBifrostLabels, filteredCustomLabels...),
@@ -447,23 +447,23 @@ func Init(config *Config, pricingManager *modelcatalog.ModelCatalog, logger sche
 
 	bifrostCacheWriteInputTokens5mTotal := factory.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "bifrost_cache_write_input_tokens_5m_total",
-			Help: "Provider-side prompt-cache write input tokens with a 5-minute TTL (Anthropic only). Subset of bifrost_cache_write_input_tokens_total — do not sum with it.",
+			Name: "meridian_cache_write_input_tokens_5m_total",
+			Help: "Provider-side prompt-cache write input tokens with a 5-minute TTL (Anthropic only). Subset of meridian_cache_write_input_tokens_total — do not sum with it.",
 		},
 		append(defaultBifrostLabels, filteredCustomLabels...),
 	)
 
 	bifrostCacheWriteInputTokens1hTotal := factory.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "bifrost_cache_write_input_tokens_1h_total",
-			Help: "Provider-side prompt-cache write input tokens with a 1-hour TTL (Anthropic only). Subset of bifrost_cache_write_input_tokens_total — do not sum with it.",
+			Name: "meridian_cache_write_input_tokens_1h_total",
+			Help: "Provider-side prompt-cache write input tokens with a 1-hour TTL (Anthropic only). Subset of meridian_cache_write_input_tokens_total — do not sum with it.",
 		},
 		append(defaultBifrostLabels, filteredCustomLabels...),
 	)
 
 	bifrostCostTotal := factory.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "bifrost_cost_total",
+			Name: "meridian_cost_total",
 			Help: "Total cost in USD for requests to upstream providers.",
 		},
 		append(defaultBifrostLabels, filteredCustomLabels...),
@@ -471,7 +471,7 @@ func Init(config *Config, pricingManager *modelcatalog.ModelCatalog, logger sche
 
 	bifrostStreamInterTokenLatencySeconds := factory.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "bifrost_stream_inter_token_latency_seconds",
+			Name:    "meridian_stream_inter_token_latency_seconds",
 			Help:    "Latency of the intermediate tokens of a stream response.",
 			Buckets: interTokenLatencyBuckets,
 		},
@@ -480,7 +480,7 @@ func Init(config *Config, pricingManager *modelcatalog.ModelCatalog, logger sche
 
 	bifrostStreamFirstTokenLatencySeconds := factory.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "bifrost_stream_first_token_latency_seconds",
+			Name:    "meridian_stream_first_token_latency_seconds",
 			Help:    "Latency of the first token of a stream response.",
 			Buckets: firstTokenLatencyBuckets,
 		},
@@ -489,7 +489,7 @@ func Init(config *Config, pricingManager *modelcatalog.ModelCatalog, logger sche
 
 	bifrostRequestRetries := factory.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "bifrost_request_retries",
+			Name:    "meridian_request_retries",
 			Help:    "Number of retries used per request (observed once per request).",
 			Buckets: []float64{0, 1, 2, 3, 5, 10},
 		},
@@ -503,7 +503,7 @@ func Init(config *Config, pricingManager *modelcatalog.ModelCatalog, logger sche
 
 	bifrostKeyRotationEventsTotal := factory.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "bifrost_key_rotation_events_total",
+			Name: "meridian_key_rotation_events_total",
 			Help: "Number of key rotations, broken down by provider, key, and failure reason. One increment per per-key failure (rate-limit/auth/billing/permission) that triggered a switch to a different key on the next retry.",
 		},
 		[]string{"provider", "requested_model", "key_id", "key_name", "fail_reason"},
@@ -511,7 +511,7 @@ func Init(config *Config, pricingManager *modelcatalog.ModelCatalog, logger sche
 
 	bifrostActiveRequests := factory.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "bifrost_active_requests",
+			Name: "meridian_active_requests",
 			Help: "Number of LLM requests currently in-flight.",
 		},
 		[]string{"method"},
@@ -519,7 +519,7 @@ func Init(config *Config, pricingManager *modelcatalog.ModelCatalog, logger sche
 
 	bifrostProviderKeyUp := factory.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "bifrost_provider_key_up",
+			Name: "meridian_provider_key_up",
 			Help: "Health of a provider key. 1 = last attempt succeeded, 0 = last attempt failed.",
 		},
 		[]string{"provider", "key_id", "key_name"},
@@ -530,7 +530,7 @@ func Init(config *Config, pricingManager *modelcatalog.ModelCatalog, logger sche
 	defaultMCPLabels := append([]string(nil), defaultMCPLabelNames...)
 	bifrostMCPToolDuration := factory.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "bifrost_mcp_client_operation_duration_seconds",
+			Name:    "meridian_mcp_client_operation_duration_seconds",
 			Help:    "Duration of an MCP tool call as observed by Meridian (the MCP client).",
 			Buckets: mcpOperationDurationBuckets,
 		},

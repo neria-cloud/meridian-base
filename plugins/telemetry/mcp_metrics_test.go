@@ -33,7 +33,7 @@ type mcpSample struct {
 	labels map[string]string
 }
 
-// gatherMCP returns every series of bifrost_mcp_client_operation_duration_seconds.
+// gatherMCP returns every series of meridian_mcp_client_operation_duration_seconds.
 func gatherMCP(t *testing.T, reg *prometheus.Registry) []mcpSample {
 	t.Helper()
 	fams, err := reg.Gather()
@@ -42,7 +42,7 @@ func gatherMCP(t *testing.T, reg *prometheus.Registry) []mcpSample {
 	}
 	var out []mcpSample
 	for _, mf := range fams {
-		if mf.GetName() != "bifrost_mcp_client_operation_duration_seconds" {
+		if mf.GetName() != "meridian_mcp_client_operation_duration_seconds" {
 			continue
 		}
 		for _, m := range mf.GetMetric() {

@@ -155,8 +155,8 @@ func tokenUsageCases() []usageCase {
 
 // TestTokenExtractionParityWithLogging is the regression guard for the customer-reported
 // Grafana-vs-Bifrost-logs usage mismatch: it drives PostLLMHook with one response per
-// usage-bearing type that logging records, and asserts bifrost_input_tokens_total /
-// bifrost_output_tokens_total reflect the exact token counts. A response type that logging
+// usage-bearing type that logging records, and asserts meridian_input_tokens_total /
+// meridian_output_tokens_total reflect the exact token counts. A response type that logging
 // records but PostLLMHook's switch omits records zero here and fails the test.
 func TestTokenExtractionParityWithLogging(t *testing.T) {
 	for _, tc := range tokenUsageCases() {
@@ -169,8 +169,8 @@ func TestTokenExtractionParityWithLogging(t *testing.T) {
 				t.Fatalf("PostLLMHook: %v", err)
 			}
 
-			waitForCounter(t, p.registry, "bifrost_input_tokens_total", tc.wantIn)
-			waitForCounter(t, p.registry, "bifrost_output_tokens_total", tc.wantOut)
+			waitForCounter(t, p.registry, "meridian_input_tokens_total", tc.wantIn)
+			waitForCounter(t, p.registry, "meridian_output_tokens_total", tc.wantOut)
 		})
 	}
 }
@@ -192,7 +192,7 @@ func TestPostLLMHookRequiresStartTime(t *testing.T) {
 	}
 	// Give any (incorrectly-spawned) goroutine a chance to write before asserting zero.
 	time.Sleep(50 * time.Millisecond)
-	if got := counterTotal(t, p.registry, "bifrost_input_tokens_total"); got != 0 {
+	if got := counterTotal(t, p.registry, "meridian_input_tokens_total"); got != 0 {
 		t.Errorf("input tokens = %v, want 0 (no start time -> no recording)", got)
 	}
 }
@@ -235,7 +235,7 @@ func TestGetMetricsGathererCombinesRegistries(t *testing.T) {
 	if _, _, err := p.PostLLMHook(ctx, resp, nil); err != nil {
 		t.Fatalf("PostLLMHook: %v", err)
 	}
-	waitForCounter(t, p.registry, "bifrost_input_tokens_total", 1)
+	waitForCounter(t, p.registry, "meridian_input_tokens_total", 1)
 
 	fams, err := p.GetMetricsGatherer().Gather()
 	if err != nil {
@@ -245,8 +245,8 @@ func TestGetMetricsGathererCombinesRegistries(t *testing.T) {
 	for _, mf := range fams {
 		present[mf.GetName()] = true
 	}
-	if !present["bifrost_input_tokens_total"] {
-		t.Error("/metrics gatherer missing Meridian metric bifrost_input_tokens_total")
+	if !present["meridian_input_tokens_total"] {
+		t.Error("/metrics gatherer missing Meridian metric meridian_input_tokens_total")
 	}
 	if !present["go_goroutines"] {
 		t.Error("/metrics gatherer missing Go runtime collector go_goroutines (systemRegistry not combined)")
@@ -313,7 +313,7 @@ func TestPushGatewayPushesBifrostButNotRuntimeCollectors(t *testing.T) {
 	if _, _, err := p.PostLLMHook(newHookContext(schemas.ChatCompletionRequest), resp, nil); err != nil {
 		t.Fatalf("PostLLMHook: %v", err)
 	}
-	waitForCounter(t, p.registry, "bifrost_input_tokens_total", 3)
+	waitForCounter(t, p.registry, "meridian_input_tokens_total", 3)
 
 	bodies := make(chan []byte, 4)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -338,8 +338,8 @@ func TestPushGatewayPushesBifrostButNotRuntimeCollectors(t *testing.T) {
 
 	select {
 	case body := <-bodies:
-		if !bytes.Contains(body, []byte("bifrost_input_tokens_total")) {
-			t.Error("pushed payload missing Meridian metric bifrost_input_tokens_total")
+		if !bytes.Contains(body, []byte("meridian_input_tokens_total")) {
+			t.Error("pushed payload missing Meridian metric meridian_input_tokens_total")
 		}
 		if bytes.Contains(body, []byte("go_goroutines")) || bytes.Contains(body, []byte("process_cpu_seconds_total")) {
 			t.Error("pushed payload unexpectedly contains Go/process runtime collectors (should be push-excluded)")

@@ -75,7 +75,7 @@
         "targets": [
           {
             "editorMode": "builder",
-            "expr": "sum(bifrost_cost_total{provider=\"openai\"})",
+            "expr": "sum(meridian_cost_total{provider=\"openai\"})",
             "legendFormat": "__auto",
             "range": true,
             "refId": "A"
@@ -169,7 +169,7 @@
         "targets": [
           {
             "editorMode": "builder",
-            "expr": "sum(rate(bifrost_success_requests_total{provider=\"openai\"}[1m]))",
+            "expr": "sum(rate(meridian_success_requests_total{provider=\"openai\"}[1m]))",
             "legendFormat": "__auto",
             "range": true,
             "refId": "A"
@@ -263,7 +263,7 @@
         "targets": [
           {
             "editorMode": "builder",
-            "expr": "sum(rate(bifrost_error_requests_total[1m]))",
+            "expr": "sum(rate(meridian_error_requests_total[1m]))",
             "legendFormat": "__auto",
             "range": true,
             "refId": "A"
@@ -331,7 +331,7 @@
               "uid": "ef10c25mgln28c"
             },
             "editorMode": "builder",
-            "expr": "sum(bifrost_input_tokens_total{provider=\"openai\"})",
+            "expr": "sum(meridian_input_tokens_total{provider=\"openai\"})",
             "legendFormat": "__auto",
             "range": true,
             "refId": "A"
@@ -396,7 +396,7 @@
         "targets": [
           {
             "editorMode": "builder",
-            "expr": "sum(bifrost_output_tokens_total{provider=\"openai\"})",
+            "expr": "sum(meridian_output_tokens_total{provider=\"openai\"})",
             "legendFormat": "__auto",
             "range": true,
             "refId": "A"
@@ -471,7 +471,7 @@
         "targets": [
           {
             "editorMode": "builder",
-            "expr": "bifrost_stream_first_token_latency_seconds_bucket{provider=\"openai\"}",
+            "expr": "meridian_stream_first_token_latency_seconds_bucket{provider=\"openai\"}",
             "legendFormat": "__auto",
             "range": true,
             "refId": "A"
@@ -545,7 +545,7 @@
         "targets": [
           {
             "editorMode": "builder",
-            "expr": "bifrost_stream_inter_token_latency_seconds_bucket{provider=\"openai\"}",
+            "expr": "meridian_stream_inter_token_latency_seconds_bucket{provider=\"openai\"}",
             "legendFormat": "__auto",
             "range": true,
             "refId": "A"

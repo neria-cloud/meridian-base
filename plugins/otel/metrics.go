@@ -302,84 +302,84 @@ func createGRPCExporter(ctx context.Context, config *MetricsConfig) (sdkmetric.E
 func (m *MetricsExporter) initMetrics() {
 	// Bifrost upstream metrics
 	m.upstreamRequestsTotal = &syncInt64Counter{
-		name:  "bifrost_upstream_requests_total",
+		name:  "meridian_upstream_requests_total",
 		desc:  "Total number of requests forwarded to upstream providers by Meridian",
 		unit:  "{request}",
 		meter: m.meter,
 	}
 
 	m.successRequestsTotal = &syncInt64Counter{
-		name:  "bifrost_success_requests_total",
+		name:  "meridian_success_requests_total",
 		desc:  "Total number of successful requests forwarded to upstream providers by Meridian",
 		unit:  "{request}",
 		meter: m.meter,
 	}
 
 	m.errorRequestsTotal = &syncInt64Counter{
-		name:  "bifrost_error_requests_total",
+		name:  "meridian_error_requests_total",
 		desc:  "Total number of error requests forwarded to upstream providers by Meridian",
 		unit:  "{request}",
 		meter: m.meter,
 	}
 
 	m.inputTokensTotal = &syncInt64Counter{
-		name:  "bifrost_input_tokens_total",
+		name:  "meridian_input_tokens_total",
 		desc:  "Total number of input tokens forwarded to upstream providers by Meridian",
 		unit:  "{token}",
 		meter: m.meter,
 	}
 
 	m.outputTokensTotal = &syncInt64Counter{
-		name:  "bifrost_output_tokens_total",
+		name:  "meridian_output_tokens_total",
 		desc:  "Total number of output tokens forwarded to upstream providers by Meridian",
 		unit:  "{token}",
 		meter: m.meter,
 	}
 
 	m.cacheHitsTotal = &syncInt64Counter{
-		name:  "bifrost_cache_hits_total",
+		name:  "meridian_cache_hits_total",
 		desc:  "Total number of cache hits forwarded to upstream providers by Meridian",
 		unit:  "{hit}",
 		meter: m.meter,
 	}
 
 	m.cacheReadInputTokensTotal = &syncInt64Counter{
-		name:  "bifrost_cache_read_input_tokens_total",
+		name:  "meridian_cache_read_input_tokens_total",
 		desc:  "Total provider-side prompt-cache read (cached) input tokens. Billed at a reduced rate by the provider",
 		unit:  "{token}",
 		meter: m.meter,
 	}
 
 	m.cacheWriteInputTokensTotal = &syncInt64Counter{
-		name:  "bifrost_cache_write_input_tokens_total",
+		name:  "meridian_cache_write_input_tokens_total",
 		desc:  "Total provider-side prompt-cache creation (write) input tokens",
 		unit:  "{token}",
 		meter: m.meter,
 	}
 
 	m.cacheWriteInputTokens5mTotal = &syncInt64Counter{
-		name:  "bifrost_cache_write_input_tokens_5m_total",
-		desc:  "Provider-side prompt-cache write input tokens with a 5-minute TTL (Anthropic only). Subset of bifrost_cache_write_input_tokens_total — do not sum with it",
+		name:  "meridian_cache_write_input_tokens_5m_total",
+		desc:  "Provider-side prompt-cache write input tokens with a 5-minute TTL (Anthropic only). Subset of meridian_cache_write_input_tokens_total — do not sum with it",
 		unit:  "{token}",
 		meter: m.meter,
 	}
 
 	m.cacheWriteInputTokens1hTotal = &syncInt64Counter{
-		name:  "bifrost_cache_write_input_tokens_1h_total",
-		desc:  "Provider-side prompt-cache write input tokens with a 1-hour TTL (Anthropic only). Subset of bifrost_cache_write_input_tokens_total — do not sum with it",
+		name:  "meridian_cache_write_input_tokens_1h_total",
+		desc:  "Provider-side prompt-cache write input tokens with a 1-hour TTL (Anthropic only). Subset of meridian_cache_write_input_tokens_total — do not sum with it",
 		unit:  "{token}",
 		meter: m.meter,
 	}
 
 	m.costTotal = &syncFloat64Counter{
-		name:  "bifrost_cost_total",
+		name:  "meridian_cost_total",
 		desc:  "Total cost in USD for requests to upstream providers",
 		unit:  "USD",
 		meter: m.meter,
 	}
 
 	m.upstreamLatencySeconds = &syncFloat64Histogram{
-		name:       "bifrost_upstream_latency_seconds",
+		name:       "meridian_upstream_latency_seconds",
 		desc:       "Latency of requests forwarded to upstream providers by Meridian",
 		unit:       "s",
 		meter:      m.meter,
@@ -387,7 +387,7 @@ func (m *MetricsExporter) initMetrics() {
 	}
 
 	m.streamFirstTokenLatencySeconds = &syncFloat64Histogram{
-		name:       "bifrost_stream_first_token_latency_seconds",
+		name:       "meridian_stream_first_token_latency_seconds",
 		desc:       "Latency of the first token of a stream response",
 		unit:       "s",
 		meter:      m.meter,
@@ -395,7 +395,7 @@ func (m *MetricsExporter) initMetrics() {
 	}
 
 	m.streamInterTokenLatencySeconds = &syncFloat64Histogram{
-		name:       "bifrost_stream_inter_token_latency_seconds",
+		name:       "meridian_stream_inter_token_latency_seconds",
 		desc:       "Latency of the intermediate tokens of a stream response",
 		unit:       "s",
 		meter:      m.meter,
@@ -403,7 +403,7 @@ func (m *MetricsExporter) initMetrics() {
 	}
 
 	m.requestRetries = &syncFloat64Histogram{
-		name:       "bifrost_request_retries",
+		name:       "meridian_request_retries",
 		desc:       "Number of retries used per request (observed once per request)",
 		unit:       "{retry}",
 		meter:      m.meter,
@@ -563,7 +563,7 @@ func (m *MetricsExporter) RecordHTTPResponseSize(ctx context.Context, sizeBytes 
 
 // BuildBifrostAttributes builds common Bifrost metric attributes.
 // Retry depth is intentionally NOT included here; it is reported via the dedicated
-// bifrost_request_retries histogram (recorded once per request) rather than as a label
+// meridian_request_retries histogram (recorded once per request) rather than as a label
 // on every per-attempt counter.
 // serviceInstanceID is this replica's id (hostname, timestamped fallback). Emitted
 // as both a resource attribute and a datapoint label so per-replica breakdown works

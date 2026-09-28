@@ -292,12 +292,12 @@ async function assertOtelMetricsReceived() {
   const entry = await poll("OTEL metrics receiver", 30000, () => state.otelMetricRequests.find((item) => item.bytes > 0));
   assertBufferContainsAll("OTEL metrics export", entry.body, [
     "bifrost-e2e",
-    "bifrost_upstream_requests_total",
-    "bifrost_success_requests_total",
-    "bifrost_input_tokens_total",
-    "bifrost_output_tokens_total",
-    "bifrost_upstream_latency_seconds",
-    "bifrost_request_retries",
+    "meridian_upstream_requests_total",
+    "meridian_success_requests_total",
+    "meridian_input_tokens_total",
+    "meridian_output_tokens_total",
+    "meridian_upstream_latency_seconds",
+    "meridian_request_retries",
     "provider",
     providerName,
     "model",
@@ -324,7 +324,7 @@ async function assertOtelErrorTrace(id, label) {
   ]);
 }
 
-// assertPrometheusErrorScrape checks bifrost_error_requests_total carries the
+// assertPrometheusErrorScrape checks meridian_error_requests_total carries the
 // status_code label for both the non-stream and stream error calls.
 async function assertPrometheusErrorScrape() {
   await poll("Prometheus error scrape", 20000, async () => {
@@ -334,14 +334,14 @@ async function assertPrometheusErrorScrape() {
     }
     const failures = [];
     for (const method of ["chat_completion", "chat_completion_stream"]) {
-      const line = findPrometheusSample(res.text, "bifrost_error_requests_total",
+      const line = findPrometheusSample(res.text, "meridian_error_requests_total",
         { provider: providerName, method, status_code: "404" });
       if (!line || parsePrometheusValue(line) < 1) {
         failures.push(method);
       }
     }
     if (failures.length > 0) {
-      throw new Error(`bifrost_error_requests_total{status_code="404"} missing for: ${failures.join(", ")}`);
+      throw new Error(`meridian_error_requests_total{status_code="404"} missing for: ${failures.join(", ")}`);
     }
     return true;
   });
@@ -388,7 +388,7 @@ async function assertPrometheusScrape() {
     }
     const hasLLMSuccessMetric = res.text
       .split("\n")
-      .some((line) => line.startsWith("bifrost_success_requests_total{") &&
+      .some((line) => line.startsWith("meridian_success_requests_total{") &&
         line.includes(`provider="${providerName}"`) &&
         (line.includes(`model="${modelName}"`) || line.includes(`model="${requestedModel}"`)));
     if (hasLLMSuccessMetric) {
@@ -398,16 +398,16 @@ async function assertPrometheusScrape() {
   });
 
   const labels = { provider: providerName, model: requestedModel, method: "chat_completion" };
-  const successLine = findPrometheusSample(metrics, "bifrost_success_requests_total", labels);
-  const upstreamLine = findPrometheusSample(metrics, "bifrost_upstream_requests_total", labels);
-  const inputLine = findPrometheusSample(metrics, "bifrost_input_tokens_total", labels);
-  const outputLine = findPrometheusSample(metrics, "bifrost_output_tokens_total", labels);
+  const successLine = findPrometheusSample(metrics, "meridian_success_requests_total", labels);
+  const upstreamLine = findPrometheusSample(metrics, "meridian_upstream_requests_total", labels);
+  const inputLine = findPrometheusSample(metrics, "meridian_input_tokens_total", labels);
+  const outputLine = findPrometheusSample(metrics, "meridian_output_tokens_total", labels);
 
   if (!successLine || parsePrometheusValue(successLine) < 1) {
-    throw new Error("Prometheus scrape is missing bifrost_success_requests_total for the LLM call");
+    throw new Error("Prometheus scrape is missing meridian_success_requests_total for the LLM call");
   }
   if (!upstreamLine || parsePrometheusValue(upstreamLine) < 1) {
-    throw new Error("Prometheus scrape is missing bifrost_upstream_requests_total for the LLM call");
+    throw new Error("Prometheus scrape is missing meridian_upstream_requests_total for the LLM call");
   }
   if (!inputLine || parsePrometheusValue(inputLine) < 2) {
     throw new Error("Prometheus scrape is missing input token count for the LLM call");
@@ -472,8 +472,8 @@ async function assertLoggingTrace() {
 // only this cross-check catches a drift where both sides individually look "present".
 function assertMetricsMatchLogs(metrics, log) {
   const labels = { provider: providerName, model: requestedModel, method: "chat_completion" };
-  const inputLine = findPrometheusSample(metrics, "bifrost_input_tokens_total", labels);
-  const outputLine = findPrometheusSample(metrics, "bifrost_output_tokens_total", labels);
+  const inputLine = findPrometheusSample(metrics, "meridian_input_tokens_total", labels);
+  const outputLine = findPrometheusSample(metrics, "meridian_output_tokens_total", labels);
   if (!inputLine || !outputLine) {
     throw new Error("metrics/logs reconciliation: /metrics is missing token counters for the LLM call");
   }
@@ -484,10 +484,10 @@ function assertMetricsMatchLogs(metrics, log) {
   const logOutput = log?.token_usage?.completion_tokens;
 
   if (metricInput !== logInput) {
-    throw new Error(`metrics/logs input-token mismatch: /metrics bifrost_input_tokens_total=${metricInput} but logs prompt_tokens=${logInput}`);
+    throw new Error(`metrics/logs input-token mismatch: /metrics meridian_input_tokens_total=${metricInput} but logs prompt_tokens=${logInput}`);
   }
   if (metricOutput !== logOutput) {
-    throw new Error(`metrics/logs output-token mismatch: /metrics bifrost_output_tokens_total=${metricOutput} but logs completion_tokens=${logOutput}`);
+    throw new Error(`metrics/logs output-token mismatch: /metrics meridian_output_tokens_total=${metricOutput} but logs completion_tokens=${logOutput}`);
   }
 }
 
