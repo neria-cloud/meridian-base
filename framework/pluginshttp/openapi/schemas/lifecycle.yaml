@@ -1,0 +1,134 @@
+# Lifecycle messages
+
+CapabilitiesRequest:
+  type: object
+  description: Empty request
+  additionalProperties: false
+
+CapabilitiesResponse:
+  type: object
+  description: Which hooks the plugin implements and its protocol version
+  required: [hooks, protocol_version]
+  properties:
+    hooks:
+      type: array
+      description: Implemented hooks; the host never calls a hook that is not listed
+      items:
+        $ref: './common.yaml#/HookName'
+      uniqueItems: true
+    protocol_version:
+      type: integer
+      format: int32
+      minimum: 1
+      description: Wire protocol version; the host refuses anything but the version it speaks (currently 1)
+    stream_supported:
+      type: boolean
+      description: True when the plugin serves HookStream
+  additionalProperties: false
+
+InitRequest:
+  type: object
+  description: Plugin configuration, passed once after Capabilities
+  properties:
+    config:
+      $ref: './common.yaml#/ConfigMap'
+  additionalProperties: false
+
+InitResponse:
+  type: object
+  properties:
+    error:
+      $ref: './common.yaml#/HookError'
+  additionalProperties: false
+
+GetNameRequest:
+  type: object
+  description: Empty request
+  additionalProperties: false
+
+GetNameResponse:
+  type: object
+  required: [name]
+  properties:
+    name:
+      type: string
+      description: The plugin's system identifier
+      minLength: 1
+  additionalProperties: false
+
+CleanupRequest:
+  type: object
+  description: Empty request; sent once before the host stops the plugin process
+  additionalProperties: false
+
+CleanupResponse:
+  type: object
+  properties:
+    error:
+      $ref: './common.yaml#/HookError'
+  additionalProperties: false
+
+HealthResponse:
+  type: object
+  description: Mirrors Meridian's /health; 200 for ok/degraded, 503 for unavailable
+  required: [status]
+  properties:
+    status:
+      type: string
+      enum: [ok, degraded, unavailable]
+    components:
+      type: object
+      description: Component name → "ok" or a reason
+      additionalProperties:
+        type: string
+  additionalProperties: false
+
+StatusResponse:
+  type: object
+  description: Identity, capabilities and counters of the plugin process
+  required: [name, protocol_version, hooks]
+  properties:
+    name:
+      type: string
+      minLength: 1
+    version:
+      type: string
+      description: Build version of the plugin, free-form
+    protocol_version:
+      type: integer
+      format: int32
+      minimum: 1
+    hooks:
+      type: array
+      items:
+        $ref: './common.yaml#/HookName'
+      uniqueItems: true
+    stream_supported:
+      type: boolean
+    started_at:
+      type: string
+      format: date-time
+    uptime_seconds:
+      type: integer
+      format: int64
+      minimum: 0
+    stats:
+      $ref: '#/StatusStats'
+  additionalProperties: false
+
+StatusStats:
+  type: object
+  properties:
+    calls_total:
+      type: integer
+      format: int64
+      minimum: 0
+    errors_total:
+      type: integer
+      format: int64
+      minimum: 0
+    open_streams:
+      type: integer
+      format: int32
+      minimum: 0
+  additionalProperties: false

@@ -1,0 +1,114 @@
+# MCPPlugin / MCPConnectionPlugin messages. Same reply conventions as the LLM messages
+# (body_changed governs the payload; ctx/error always apply).
+
+PreMCPHookRequest:
+  type: object
+  required: [ctx, request]
+  properties:
+    ctx:
+      $ref: './common.yaml#/ContextDetails'
+    request:
+      $ref: './common.yaml#/MCPRequest'
+  additionalProperties: false
+
+PreMCPHookResponse:
+  type: object
+  properties:
+    request:
+      $ref: './common.yaml#/MCPRequest'
+    short_circuit:
+      $ref: './common.yaml#/MCPShortCircuit'
+    error:
+      $ref: './common.yaml#/HookError'
+    ctx:
+      $ref: './common.yaml#/ContextDelta'
+    body_changed:
+      type: boolean
+      default: false
+      description: false = keep the host's request (payload not decoded); true = `request` replaces it
+  additionalProperties: false
+
+PostMCPHookRequest:
+  type: object
+  required: [ctx]
+  properties:
+    ctx:
+      $ref: './common.yaml#/ContextDetails'
+    response:
+      $ref: './common.yaml#/MCPResponse'
+    error:
+      $ref: './common.yaml#/BifrostError'
+  additionalProperties: false
+
+PostMCPHookResponse:
+  type: object
+  properties:
+    response:
+      $ref: './common.yaml#/MCPResponse'
+    plugin_error:
+      $ref: './common.yaml#/BifrostError'
+    error:
+      $ref: './common.yaml#/HookError'
+    ctx:
+      $ref: './common.yaml#/ContextDelta'
+    body_changed:
+      type: boolean
+      default: false
+      description: false = keep the host's response and error; true = both are replaced by this reply (absent = nil)
+  additionalProperties: false
+
+PreMCPConnectionHookRequest:
+  type: object
+  required: [ctx, request]
+  properties:
+    ctx:
+      $ref: './common.yaml#/ContextDetails'
+    request:
+      $ref: './common.yaml#/MCPConnectRequest'
+  additionalProperties: false
+
+PreMCPConnectionHookResponse:
+  type: object
+  properties:
+    request:
+      $ref: './common.yaml#/MCPConnectRequest'
+    short_circuit:
+      $ref: './common.yaml#/MCPShortCircuit'
+    error:
+      $ref: './common.yaml#/HookError'
+    ctx:
+      $ref: './common.yaml#/ContextDelta'
+    body_changed:
+      type: boolean
+      default: false
+      description: false = keep the host's request; true = the mutable fields (connection_string, headers) are replaced
+  additionalProperties: false
+
+PostMCPConnectionHookRequest:
+  type: object
+  required: [ctx]
+  properties:
+    ctx:
+      $ref: './common.yaml#/ContextDetails'
+    response:
+      $ref: './common.yaml#/MCPConnectResponse'
+    error:
+      $ref: './common.yaml#/BifrostError'
+  additionalProperties: false
+
+PostMCPConnectionHookResponse:
+  type: object
+  properties:
+    response:
+      $ref: './common.yaml#/MCPConnectResponse'
+    plugin_error:
+      $ref: './common.yaml#/BifrostError'
+    error:
+      $ref: './common.yaml#/HookError'
+    ctx:
+      $ref: './common.yaml#/ContextDelta'
+    body_changed:
+      type: boolean
+      default: false
+      description: false = keep the host's response and error; true = both are replaced by this reply (absent = nil)
+  additionalProperties: false

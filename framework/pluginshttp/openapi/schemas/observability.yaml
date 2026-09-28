@@ -1,0 +1,19 @@
+# ObservabilityPlugin messages
+
+InjectRequest:
+  type: object
+  description: A completed trace. `ctx` carries only request id and deadline (Inject takes a plain context)
+  required: [ctx, trace]
+  properties:
+    ctx:
+      $ref: './common.yaml#/ContextDetails'
+    trace:
+      $ref: './common.yaml#/Trace'
+  additionalProperties: false
+
+InjectResponse:
+  type: object
+  properties:
+    error:
+      $ref: './common.yaml#/HookError'
+  additionalProperties: false

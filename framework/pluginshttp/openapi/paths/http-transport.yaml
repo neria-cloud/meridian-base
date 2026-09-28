@@ -1,0 +1,109 @@
+# http-transport operations — POST /api/meridian/plugin/v1/{method}
+
+http-transport-pre-auth-hook:
+  post:
+    operationId: HTTPTransportPreAuthHook
+    x-meridian-hook: HTTPTransportPreAuthHook
+    summary: Intercept an HTTP request before authentication
+    description: |
+      Same messages as HTTPTransportPreHook. `response` in the reply short-circuits the request before authentication.
+    tags:
+    - HTTPTransportPlugin
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/http-transport.yaml#/HTTPTransportPreHookRequest'
+    responses:
+      '200':
+        description: The call ran; hook-level errors are inside the message
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/http-transport.yaml#/HTTPTransportPreHookResponse'
+      '400':
+        $ref: '../openapi.yaml#/components/responses/TransportError'
+      '500':
+        $ref: '../openapi.yaml#/components/responses/TransportError'
+
+http-transport-pre-hook:
+  post:
+    operationId: HTTPTransportPreHook
+    x-meridian-hook: HTTPTransportPreHook
+    summary: Intercept an HTTP request before it enters the core
+    description: |
+      Mutations to `request` are echoed back and applied in place by the host; `response` short-circuits.
+    tags:
+    - HTTPTransportPlugin
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/http-transport.yaml#/HTTPTransportPreHookRequest'
+    responses:
+      '200':
+        description: The call ran; hook-level errors are inside the message
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/http-transport.yaml#/HTTPTransportPreHookResponse'
+      '400':
+        $ref: '../openapi.yaml#/components/responses/TransportError'
+      '500':
+        $ref: '../openapi.yaml#/components/responses/TransportError'
+
+http-transport-post-hook:
+  post:
+    operationId: HTTPTransportPostHook
+    x-meridian-hook: HTTPTransportPostHook
+    summary: Intercept an HTTP response after the core produced it
+    description: |
+      Mutations to `response` are echoed back and applied in place.
+    tags:
+    - HTTPTransportPlugin
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/http-transport.yaml#/HTTPTransportPostHookRequest'
+    responses:
+      '200':
+        description: The call ran; hook-level errors are inside the message
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/http-transport.yaml#/HTTPTransportPostHookResponse'
+      '400':
+        $ref: '../openapi.yaml#/components/responses/TransportError'
+      '500':
+        $ref: '../openapi.yaml#/components/responses/TransportError'
+
+http-transport-stream-chunk-hook:
+  post:
+    operationId: HTTPTransportStreamChunkHook
+    x-meridian-hook: HTTPTransportStreamChunkHook
+    summary: Intercept one streaming chunk before it is written to the client
+    description: |
+      Called once per chunk, in order.
+    tags:
+    - HTTPTransportPlugin
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/http-transport.yaml#/HTTPTransportStreamChunkHookRequest'
+    responses:
+      '200':
+        description: The call ran; hook-level errors are inside the message
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/http-transport.yaml#/HTTPTransportStreamChunkHookResponse'
+      '400':
+        $ref: '../openapi.yaml#/components/responses/TransportError'
+      '500':
+        $ref: '../openapi.yaml#/components/responses/TransportError'

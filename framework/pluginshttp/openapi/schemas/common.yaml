@@ -1,0 +1,504 @@
+# Shared message schemas.
+# Property names are snake_case.
+
+HookName:
+  type: string
+  description: Name of a hook (an operation of this document)
+  enum:
+    - HTTPTransportPreAuthHook
+    - HTTPTransportPreHook
+    - HTTPTransportPostHook
+    - HTTPTransportStreamChunkHook
+    - PreRequestHook
+    - PreLLMHook
+    - PostLLMHook
+    - PreMCPHook
+    - PostMCPHook
+    - PreMCPConnectionHook
+    - PostMCPConnectionHook
+    - Inject
+    - MarshalConfigForStorage
+    - RedactConfig
+
+ContextDetails:
+  type: object
+  description: |
+    Wire projection of the host's request context (host -> plugin): request id,
+    deadline and the string-valued context entries. The plugin rebuilds a local
+    context from it and returns its writes as a ContextDelta.
+  properties:
+    request_id:
+      type: string
+      description: Request identifier (also present in ContextDetails.values under the request-id key)
+    deadline_unix_nano:
+      type: integer
+      format: int64
+      minimum: 0
+      description: Absolute deadline as Unix nanoseconds; 0 = no deadline
+    values:
+      type: object
+      description: |
+        Context values whose key is a BifrostContextKey. Any JSON value (string, number, boolean,
+        array, object); credentials (direct provider key, session token, raw virtual key) never cross.
+      additionalProperties: {}
+    plugin_scope:
+      type: string
+      description: Name of the plugin the context is scoped to
+  additionalProperties: false
+
+ContextDelta:
+  type: object
+  description: Context writes made by the plugin during a call (plugin -> host); the host merges them into the real context
+  properties:
+    set:
+      type: object
+      description: Keys to set (or overwrite); any JSON value. Reserved host keys are dropped by the host.
+      additionalProperties: {}
+    clear:
+      type: array
+      description: Keys to remove
+      items:
+        type: string
+  additionalProperties: false
+
+RequestDetails:
+  type: object
+  description: |
+    HTTP transport request envelope: exactly the JSON tags of Meridian's
+    core schemas.HTTPRequest (method, path, headers, query, path_params, body)
+    plus host extras. Carried by the HTTPTransport* hooks; LLM/MCP hooks carry
+    LLMRequest / MCPRequest instead.
+
+    The body appears in exactly one of two forms: `body` (raw JSON, used when the
+    request body is valid JSON, copied verbatim) or `body_b64` (base64, used for
+    any other content).
+  properties:
+    request_id:
+      type: string
+    method:
+      type: string
+      description: HTTP method
+      examples: [POST]
+    path:
+      type: string
+      description: URL path
+      examples: [/v1/chat/completions]
+    headers:
+      type: object
+      additionalProperties:
+        type: string
+    query:
+      type: object
+      additionalProperties:
+        type: string
+    path_params:
+      type: object
+      description: Path variables extracted from the URL pattern
+      additionalProperties:
+        type: string
+    body:
+      description: Request body as raw JSON (any JSON value); present only when the body is valid JSON
+    body_b64:
+      type: string
+      contentEncoding: base64
+      description: Request body, base64-encoded; present only when the body is not valid JSON
+    received_at_unix_nano:
+      type: integer
+      format: int64
+      minimum: 0
+      description: When the host received the request, Unix nanoseconds
+    client_ip:
+      type: string
+    attempt:
+      type: integer
+      format: int32
+      minimum: 0
+      description: Retry/fallback attempt number, 1-based
+  not:
+    required: [body, body_b64]
+  additionalProperties: false
+
+ResponseDetails:
+  type: object
+  description: |
+    HTTP transport response envelope: exactly the JSON tags of Meridian's core
+    schemas.HTTPResponse (status_code, headers, body). `body` is raw JSON when the
+    body is valid JSON, `body_b64` (base64) otherwise.
+  properties:
+    status_code:
+      type: integer
+      format: int32
+      minimum: 0
+    headers:
+      type: object
+      additionalProperties:
+        type: string
+    body:
+      description: Response body as raw JSON (any JSON value); present only when the body is valid JSON
+    body_b64:
+      type: string
+      contentEncoding: base64
+      description: Response body, base64-encoded; present only when the body is not valid JSON
+  not:
+    required: [body, body_b64]
+  additionalProperties: false
+
+StreamChunk:
+  type: object
+  description: |
+    One streamed unit. `chunk` is the JSON of Meridian's core schemas.BifrostStreamChunk
+    (its MarshalJSON: the one non-nil embedded stream response for `request_type`, or a
+    BifrostError chunk recognisable by `is_bifrost_error`). `index` is host-assigned, 0-based,
+    per request.
+  properties:
+    index:
+      type: integer
+      format: int64
+      minimum: 0
+    request_type:
+      $ref: '#/RequestType'
+    chunk:
+      description: schemas.BifrostStreamChunk JSON (any JSON value)
+  additionalProperties: false
+
+BifrostError:
+  type: object
+  description: |
+    Meridian's core schemas.BifrostError with its JSON tags verbatim (event_id, type,
+    is_bifrost_error, status_code, error, extra_fields). `allow_fallbacks` and
+    `stream_control` are json:"-" in Go and made explicit here because plugins control them.
+    It is data, not a transport failure.
+  properties:
+    event_id:
+      type: string
+    type:
+      type: string
+    is_bifrost_error:
+      type: boolean
+    status_code:
+      type: integer
+      format: int32
+      minimum: 0
+    error:
+      $ref: '#/ErrorField'
+    extra_fields:
+      type: object
+      description: schemas.BifrostErrorExtraFields (request_type, provider, model_requested, model_used, ...)
+      additionalProperties: {}
+    allow_fallbacks:
+      description: Boolean; controls fallback behaviour. Absent = the host keeps its own value (default allowed).
+      oneOf:
+        - type: boolean
+    stream_control:
+      type: object
+      description: schemas.StreamControl
+      additionalProperties: {}
+  additionalProperties: false
+
+ErrorField:
+  type: object
+  description: schemas.ErrorField JSON tags verbatim
+  required: [message]
+  properties:
+    type:
+      type: string
+    code:
+      type: string
+    message:
+      type: string
+    param:
+      description: Any JSON value
+    event_id:
+      type: string
+  additionalProperties: false
+
+RequestType:
+  type: string
+  description: schemas.RequestType; the value names the typed core request/response carried next to it
+  enum:
+    - list_models
+    - text_completion
+    - text_completion_stream
+    - chat_completion
+    - chat_completion_stream
+    - responses
+    - responses_stream
+    - responses_retrieve
+    - responses_retrieve_stream
+    - responses_delete
+    - responses_cancel
+    - responses_input_items
+    - embedding
+    - speech
+    - speech_stream
+    - transcription
+    - transcription_stream
+    - image_generation
+    - image_generation_stream
+    - image_edit
+    - image_edit_stream
+    - image_variation
+    - video_generation
+    - video_retrieve
+    - video_download
+    - video_delete
+    - video_list
+    - video_remix
+    - batch_create
+    - batch_list
+    - batch_retrieve
+    - batch_cancel
+    - batch_results
+    - batch_delete
+    - file_upload
+    - file_list
+    - file_retrieve
+    - file_delete
+    - cached_content_create
+    - cached_content_list
+    - cached_content_retrieve
+    - cached_content_update
+    - cached_content_delete
+    - file_content
+    - container_create
+    - container_list
+    - container_retrieve
+    - container_delete
+    - container_file_create
+    - container_file_list
+    - container_file_retrieve
+    - container_file_content
+    - container_file_delete
+    - rerank
+    - ocr
+    - count_tokens
+    - compaction
+    - mcp_tool_execution
+    - passthrough
+    - passthrough_stream
+    - unknown
+    - websocket_responses
+    - realtime
+    - ping
+    - list_tools
+    - chat_tool_call
+    - responses_tool_call
+    - execute_tool
+
+MCPRequestType:
+  type: string
+  description: schemas.MCPRequestType
+  enum:
+    - ping
+    - list_tools
+    - chat_tool_call
+    - responses_tool_call
+    - execute_tool
+
+LLMRequest:
+  type: object
+  description: |
+    An LLM-side request: `request_type` names the typed core request and `request` is that
+    struct's own JSON (schemas.BifrostChatRequest for chat_completion(_stream), schemas.BifrostEmbeddingRequest
+    for embedding, ...). The untagged union schemas.BifrostRequest is never marshalled.
+  required: [request_type]
+  properties:
+    request_type:
+      $ref: '#/RequestType'
+    request:
+      description: JSON of schemas.Bifrost<Type>Request for request_type (any JSON value)
+      x-meridian-go-type: schemas.Bifrost<Type>Request
+  additionalProperties: false
+
+LLMResponse:
+  type: object
+  description: An LLM-side response; `response` is the JSON of schemas.Bifrost<Type>Response for `request_type`
+  properties:
+    request_type:
+      $ref: '#/RequestType'
+    response:
+      description: JSON of schemas.Bifrost<Type>Response (any JSON value)
+      x-meridian-go-type: schemas.Bifrost<Type>Response
+  additionalProperties: false
+
+LLMShortCircuit:
+  type: object
+  description: Mirrors schemas.LLMPluginShortCircuit; exactly one of response / error is expected
+  properties:
+    response:
+      $ref: '#/LLMResponse'
+    error:
+      $ref: '#/BifrostError'
+  additionalProperties: false
+
+MCPRequest:
+  type: object
+  description: |
+    An MCP request: the untagged schemas.BifrostMCPRequest crosses as `request_type`, `client_name`
+    (snake_case of the Go fields) and `request` = JSON of the typed core MCP request.
+  required: [request_type, client_name]
+  properties:
+    request_type:
+      $ref: '#/MCPRequestType'
+    client_name:
+      type: string
+    request:
+      description: JSON of the typed schemas.BifrostMCP<Type>Request (any JSON value)
+  additionalProperties: false
+
+MCPResponse:
+  type: object
+  description: An MCP response; `response` is the JSON of schemas.BifrostMCPResponse
+  properties:
+    request_type:
+      $ref: '#/MCPRequestType'
+    response:
+      description: JSON of schemas.BifrostMCPResponse (any JSON value)
+  additionalProperties: false
+
+MCPShortCircuit:
+  type: object
+  description: Mirrors schemas.MCPPluginShortCircuit / MCPConnectionShortCircuit
+  properties:
+    response:
+      $ref: '#/MCPResponse'
+    error:
+      $ref: '#/BifrostError'
+  additionalProperties: false
+
+MCPConnectRequest:
+  type: object
+  description: schemas.BifrostMCPConnectRequest (untagged in Go; snake_case of the Go field names)
+  required: [client_name]
+  properties:
+    client_name:
+      type: string
+    connection_type:
+      type: string
+    auth_type:
+      type: string
+    connection_string:
+      type: string
+    headers:
+      type: object
+      additionalProperties:
+        type: string
+    extra:
+      description: Remaining fields of the Go struct as a JSON object (any JSON value)
+  additionalProperties: false
+
+MCPConnectResponse:
+  type: object
+  description: schemas.BifrostMCPConnectResponse; `response` is its JSON
+  properties:
+    client_name:
+      type: string
+    response:
+      description: JSON of schemas.BifrostMCPConnectResponse (any JSON value)
+  additionalProperties: false
+
+Span:
+  type: object
+  description: schemas.Span
+  required: [span_id, name]
+  properties:
+    span_id: {type: string}
+    parent_id: {type: string}
+    trace_id: {type: string}
+    name: {type: string}
+    kind: {type: string}
+    start_unix_nano: {type: integer, format: int64, minimum: 0}
+    end_unix_nano: {type: integer, format: int64, minimum: 0}
+    status: {type: string}
+    status_msg: {type: string}
+    attributes:
+      type: object
+      additionalProperties: {}
+    events:
+      type: array
+      items:
+        $ref: '#/SpanEvent'
+  additionalProperties: false
+
+SpanEvent:
+  type: object
+  required: [name]
+  properties:
+    name: {type: string}
+    time_unix_nano: {type: integer, format: int64, minimum: 0}
+    attributes:
+      type: object
+      additionalProperties: {}
+  additionalProperties: false
+
+PluginLogEntry:
+  type: object
+  description: schemas.PluginLogEntry
+  required: [plugin, level, message]
+  properties:
+    plugin: {type: string}
+    level: {type: string}
+    message: {type: string}
+    time_unix_nano: {type: integer, format: int64, minimum: 0}
+  additionalProperties: false
+
+
+HookError:
+  type: object
+  description: The Go `error` returned by a hook. Absent means nil. Distinct from transport failures.
+  required: [message]
+  properties:
+    message:
+      type: string
+  additionalProperties: false
+
+ConfigMap:
+  description: |
+    A plugin configuration object: free-form JSON, passed through unchanged.
+  type: object
+  additionalProperties: true
+
+Trace:
+  type: object
+  description: schemas.Trace handed to ObservabilityPlugin.Inject (full shape, spans included)
+  properties:
+    request_id: {type: string}
+    trace_id: {type: string}
+    internal_id: {type: string}
+    parent_id: {type: string}
+    start_unix_nano: {type: integer, format: int64, minimum: 0}
+    end_unix_nano: {type: integer, format: int64, minimum: 0}
+    attributes:
+      type: object
+      additionalProperties: {}
+    request_headers:
+      type: object
+      additionalProperties:
+        type: string
+    plugin_logs:
+      type: array
+      items:
+        $ref: '#/PluginLogEntry'
+    spans:
+      type: array
+      items:
+        $ref: '#/Span'
+  additionalProperties: false
+
+TransportErrorBody:
+  type: object
+  description: Body of a transport-level failure (the plugin could not run the call at all)
+  required: [error]
+  properties:
+    error:
+      type: string
+  additionalProperties: false
+
+components:
+  responses:
+    TransportError:
+      description: Transport-level failure (unknown method, malformed message, plugin shutting down). Hook-level errors never use this; they travel inside the response message.
+      content:
+        application/json:
+          schema:
+            $ref: '#/TransportErrorBody'

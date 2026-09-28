@@ -1,0 +1,108 @@
+# HTTPTransportPlugin messages. HTTPTransportPreAuthHook shares the PreHook messages.
+
+HTTPTransportPreHookRequest:
+  type: object
+  description: Input of HTTPTransportPreAuthHook and HTTPTransportPreHook
+  required: [ctx, request]
+  properties:
+    ctx:
+      $ref: './common.yaml#/ContextDetails'
+    request:
+      $ref: './common.yaml#/RequestDetails'
+  additionalProperties: false
+
+HTTPTransportPreHookResponse:
+  type: object
+  description: |
+    Output of the transport pre-hooks. `response` set = short-circuit with that
+    response; `request` echoes the (possibly mutated) request so the host can
+    apply in-place semantics; `ctx` carries context writes; `error` is the
+    hook's Go error.
+  properties:
+    response:
+      $ref: './common.yaml#/ResponseDetails'
+    error:
+      $ref: './common.yaml#/HookError'
+    ctx:
+      $ref: './common.yaml#/ContextDelta'
+    request:
+      $ref: './common.yaml#/RequestDetails'
+    body_changed:
+      type: boolean
+      default: false
+      description: |
+        false (or absent): the host keeps the request/response/error/chunk it already holds and does not
+        decode any payload carried by this reply; omit the payload to save bytes. true: the payload
+        properties of this reply replace the host's objects in place; an absent property then means nil
+        (empty body, recovered error, dropped chunk). Transport metadata of an echoed request/response
+        (method, path, headers, query, path_params, status_code) is applied whenever the echo object is
+        present, independent of this flag.
+  additionalProperties: false
+
+HTTPTransportPostHookRequest:
+  type: object
+  required: [ctx, request, response]
+  properties:
+    ctx:
+      $ref: './common.yaml#/ContextDetails'
+    request:
+      $ref: './common.yaml#/RequestDetails'
+    response:
+      $ref: './common.yaml#/ResponseDetails'
+  additionalProperties: false
+
+HTTPTransportPostHookResponse:
+  type: object
+  properties:
+    error:
+      $ref: './common.yaml#/HookError'
+    ctx:
+      $ref: './common.yaml#/ContextDelta'
+    response:
+      $ref: './common.yaml#/ResponseDetails'
+      description: The (possibly mutated) response echoed back
+    body_changed:
+      type: boolean
+      default: false
+      description: |
+        false (or absent): the host keeps the request/response/error/chunk it already holds and does not
+        decode any payload carried by this reply; omit the payload to save bytes. true: the payload
+        properties of this reply replace the host's objects in place; an absent property then means nil
+        (empty body, recovered error, dropped chunk). Transport metadata of an echoed request/response
+        (method, path, headers, query, path_params, status_code) is applied whenever the echo object is
+        present, independent of this flag.
+  additionalProperties: false
+
+HTTPTransportStreamChunkHookRequest:
+  type: object
+  required: [ctx, request, chunk]
+  properties:
+    ctx:
+      $ref: './common.yaml#/ContextDetails'
+    request:
+      $ref: './common.yaml#/RequestDetails'
+    chunk:
+      $ref: './common.yaml#/StreamChunk'
+  additionalProperties: false
+
+HTTPTransportStreamChunkHookResponse:
+  type: object
+  properties:
+    chunk:
+      $ref: './common.yaml#/StreamChunk'
+      description: The (possibly mutated) chunk; absent with body_changed=true = drop the chunk
+    error:
+      $ref: './common.yaml#/HookError'
+    ctx:
+      $ref: './common.yaml#/ContextDelta'
+    body_changed:
+      type: boolean
+      default: false
+      description: |
+        false (or absent): the host keeps the request/response/error/chunk it already holds and does not
+        decode any payload carried by this reply; omit the payload to save bytes. true: the payload
+        properties of this reply replace the host's objects in place; an absent property then means nil
+        (empty body, recovered error, dropped chunk). Transport metadata of an echoed request/response
+        (method, path, headers, query, path_params, status_code) is applied whenever the echo object is
+        present, independent of this flag.
+  additionalProperties: false

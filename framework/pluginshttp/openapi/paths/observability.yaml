@@ -1,0 +1,27 @@
+# observability operations — POST /api/meridian/plugin/v1/{method}
+
+inject:
+  post:
+    operationId: Inject
+    x-meridian-hook: Inject
+    summary: Receive a completed trace
+    description: Delivers a completed trace to the plugin. The reply error is non-blocking.
+    tags:
+    - ObservabilityPlugin
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/observability.yaml#/InjectRequest'
+    responses:
+      '200':
+        description: The call ran; hook-level errors are inside the message
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/observability.yaml#/InjectResponse'
+      '400':
+        $ref: '../openapi.yaml#/components/responses/TransportError'
+      '500':
+        $ref: '../openapi.yaml#/components/responses/TransportError'

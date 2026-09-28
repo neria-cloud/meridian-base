@@ -1,0 +1,107 @@
+# LLMPlugin messages
+
+PreRequestHookRequest:
+  type: object
+  required: [ctx, request]
+  properties:
+    ctx:
+      $ref: './common.yaml#/ContextDetails'
+    request:
+      $ref: './common.yaml#/LLMRequest'
+  additionalProperties: false
+
+PreRequestHookResponse:
+  type: object
+  description: PreRequestHook cannot short-circuit; its error is non-blocking (logged by the host)
+  properties:
+    error:
+      $ref: './common.yaml#/HookError'
+    ctx:
+      $ref: './common.yaml#/ContextDelta'
+    request:
+      $ref: './common.yaml#/LLMRequest'
+    body_changed:
+      type: boolean
+      default: false
+      description: |
+        false (or absent): the host keeps the request/response/error/chunk it already holds and does not
+        decode any payload carried by this reply; omit the payload to save bytes. true: the payload
+        properties of this reply replace the host's objects in place; an absent property then means nil
+        (empty body, recovered error, dropped chunk). Transport metadata of an echoed request/response
+        (method, path, headers, query, path_params, status_code) is applied whenever the echo object is
+        present, independent of this flag.
+  additionalProperties: false
+
+PreLLMHookRequest:
+  type: object
+  required: [ctx, request]
+  properties:
+    ctx:
+      $ref: './common.yaml#/ContextDetails'
+    request:
+      $ref: './common.yaml#/LLMRequest'
+  additionalProperties: false
+
+PreLLMHookResponse:
+  type: object
+  description: |
+    `request` is the (possibly mutated) request, applied only when `body_changed` is true.
+    `short_circuit` stops the pipeline with a response or an error.
+  properties:
+    request:
+      $ref: './common.yaml#/LLMRequest'
+    short_circuit:
+      $ref: './common.yaml#/LLMShortCircuit'
+    error:
+      $ref: './common.yaml#/HookError'
+    ctx:
+      $ref: './common.yaml#/ContextDelta'
+    body_changed:
+      type: boolean
+      default: false
+      description: |
+        false (or absent): the host keeps the request/response/error/chunk it already holds and does not
+        decode any payload carried by this reply; omit the payload to save bytes. true: the payload
+        properties of this reply replace the host's objects in place; an absent property then means nil
+        (empty body, recovered error, dropped chunk). Transport metadata of an echoed request/response
+        (method, path, headers, query, path_params, status_code) is applied whenever the echo object is
+        present, independent of this flag.
+  additionalProperties: false
+
+PostLLMHookRequest:
+  type: object
+  description: Post-hooks receive the provider response and/or the provider error; no request (the LLMPlugin signature)
+  required: [ctx]
+  properties:
+    ctx:
+      $ref: './common.yaml#/ContextDetails'
+    response:
+      $ref: './common.yaml#/LLMResponse'
+    error:
+      $ref: './common.yaml#/BifrostError'
+  additionalProperties: false
+
+PostLLMHookResponse:
+  type: object
+  description: With body_changed=true BOTH response and plugin_error replace the host's (absent = nil, i.e. a recovered error)
+  properties:
+    response:
+      $ref: './common.yaml#/LLMResponse'
+    plugin_error:
+      $ref: './common.yaml#/BifrostError'
+      description: The (possibly replaced) provider error
+    error:
+      $ref: './common.yaml#/HookError'
+    ctx:
+      $ref: './common.yaml#/ContextDelta'
+    body_changed:
+      type: boolean
+      default: false
+      description: |
+        false (or absent): the host keeps the request/response/error/chunk it already holds and does not
+        decode any payload carried by this reply; omit the payload to save bytes. true: the payload
+        properties of this reply replace the host's objects in place; an absent property then means nil
+        (empty body, recovered error, dropped chunk). Transport metadata of an echoed request/response
+        (method, path, headers, query, path_params, status_code) is applied whenever the echo object is
+        present, independent of this flag.
+  additionalProperties: false

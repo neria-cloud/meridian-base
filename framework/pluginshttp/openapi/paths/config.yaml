@@ -1,0 +1,55 @@
+# config operations — POST /api/meridian/plugin/v1/{method}
+
+marshal-config-for-storage:
+  post:
+    operationId: MarshalConfigForStorage
+    x-meridian-hook: MarshalConfigForStorage
+    summary: Convert the config map to its storage form
+    description: |
+      Passthrough when not implemented.
+    tags:
+    - ConfigMarshallerPlugin
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/config.yaml#/ConfigMapRequest'
+    responses:
+      '200':
+        description: The call ran; hook-level errors are inside the message
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/config.yaml#/ConfigMapResponse'
+      '400':
+        $ref: '../openapi.yaml#/components/responses/TransportError'
+      '500':
+        $ref: '../openapi.yaml#/components/responses/TransportError'
+
+redact-config:
+  post:
+    operationId: RedactConfig
+    x-meridian-hook: RedactConfig
+    summary: Mask sensitive values of the config map for API responses
+    description: |
+      Passthrough when not implemented.
+    tags:
+    - ConfigMarshallerPlugin
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/config.yaml#/ConfigMapRequest'
+    responses:
+      '200':
+        description: The call ran; hook-level errors are inside the message
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/config.yaml#/ConfigMapResponse'
+      '400':
+        $ref: '../openapi.yaml#/components/responses/TransportError'
+      '500':
+        $ref: '../openapi.yaml#/components/responses/TransportError'

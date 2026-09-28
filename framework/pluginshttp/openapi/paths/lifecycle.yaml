@@ -1,0 +1,148 @@
+# lifecycle operations — POST /api/meridian/plugin/v1/{method}
+
+capabilities:
+  post:
+    operationId: Capabilities
+    x-meridian-hook: Capabilities
+    summary: Report implemented hooks and protocol version
+    description: |
+      The host calls it first on every connection. Hooks not listed are never called (passthrough on the host side).
+    tags:
+    - Lifecycle
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/lifecycle.yaml#/CapabilitiesRequest'
+    responses:
+      '200':
+        description: The call ran; hook-level errors are inside the message
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/lifecycle.yaml#/CapabilitiesResponse'
+      '400':
+        $ref: '../openapi.yaml#/components/responses/TransportError'
+      '500':
+        $ref: '../openapi.yaml#/components/responses/TransportError'
+
+init:
+  post:
+    operationId: Init
+    x-meridian-hook: Init
+    summary: Initialize the plugin with its configuration
+    description: |
+      Called once after Capabilities when a configuration is present. A `error` in the reply aborts loading.
+    tags:
+    - Lifecycle
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/lifecycle.yaml#/InitRequest'
+    responses:
+      '200':
+        description: The call ran; hook-level errors are inside the message
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/lifecycle.yaml#/InitResponse'
+      '400':
+        $ref: '../openapi.yaml#/components/responses/TransportError'
+      '500':
+        $ref: '../openapi.yaml#/components/responses/TransportError'
+
+get-name:
+  post:
+    operationId: GetName
+    x-meridian-hook: GetName
+    summary: Return the plugin name
+    description: The plugin's system identifier, stable for the lifetime of the process.
+    tags:
+    - Lifecycle
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/lifecycle.yaml#/GetNameRequest'
+    responses:
+      '200':
+        description: The call ran; hook-level errors are inside the message
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/lifecycle.yaml#/GetNameResponse'
+      '400':
+        $ref: '../openapi.yaml#/components/responses/TransportError'
+      '500':
+        $ref: '../openapi.yaml#/components/responses/TransportError'
+
+cleanup:
+  post:
+    operationId: Cleanup
+    x-meridian-hook: Cleanup
+    summary: Release resources before shutdown
+    description: |
+      The host sends SIGTERM to the plugin process group after the reply (or after a 2 s timeout).
+    tags:
+    - Lifecycle
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '../schemas/lifecycle.yaml#/CleanupRequest'
+    responses:
+      '200':
+        description: The call ran; hook-level errors are inside the message
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/lifecycle.yaml#/CleanupResponse'
+      '400':
+        $ref: '../openapi.yaml#/components/responses/TransportError'
+      '500':
+        $ref: '../openapi.yaml#/components/responses/TransportError'
+
+health:
+  get:
+    operationId: Health
+    x-meridian-hook: Health
+    summary: Liveness and dependency health of the plugin process
+    description: |
+      Mirrors Meridian's /health: 200 when the plugin can serve hooks (ok or degraded), 503 when it
+      cannot. Optional: a host that receives 404 probes with POST /capabilities instead.
+    tags:
+    - Lifecycle
+    responses:
+      '200':
+        description: Healthy, or degraded but serving
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/lifecycle.yaml#/HealthResponse'
+      '503':
+        description: Unavailable
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/lifecycle.yaml#/HealthResponse'
+
+status:
+  get:
+    operationId: Status
+    x-meridian-hook: Status
+    summary: Identity, capabilities and counters of the plugin process
+    description: Optional; a host that receives 404 keeps the load-time Capabilities reply.
+    tags:
+    - Lifecycle
+    responses:
+      '200':
+        description: Status
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas/lifecycle.yaml#/StatusResponse'
