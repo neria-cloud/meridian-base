@@ -192,6 +192,7 @@ func Init(ctx context.Context, config *Config, configStore configstore.ConfigSto
 			}
 		}()
 		wg.Wait()
+		pricingErr, paramsErr = mc.toleratedStartupErr(pricingErr), mc.toleratedStartupErr(paramsErr)
 		if pricingErr != nil {
 			return nil, pricingErr
 		}
@@ -237,10 +238,10 @@ func Init(ctx context.Context, config *Config, configStore configstore.ConfigSto
 			}
 		}
 	} else {
-		if err := mc.datasheet.LoadFromURLIntoMemory(ctx); err != nil {
+		if err := mc.loadIntoMemory(ctx, mc.datasheet.URL(), mc.datasheet.LoadFromURLIntoMemory); err != nil {
 			return nil, fmt.Errorf("failed to load pricing data into memory: %w", err)
 		}
-		if err := mc.datasheet.LoadModelParamsFromURLIntoMemory(ctx); err != nil {
+		if err := mc.loadIntoMemory(ctx, mc.datasheet.ModelParametersURL(), mc.datasheet.LoadModelParamsFromURLIntoMemory); err != nil {
 			return nil, fmt.Errorf("failed to load model parameters from URL: %w", err)
 		}
 	}
@@ -508,11 +509,17 @@ func (mc *ModelCatalog) runPricingSync(ctx context.Context) error {
 	if mc.shouldSyncGate != nil && !mc.shouldSyncGate(ctx) {
 		return nil
 	}
+	if mc.datasheet.URL() == "" {
+		return nil
+	}
 	return mc.datasheet.SyncFromURL(ctx)
 }
 
 // runParamsSync wraps the datasheet params sync with the gate check.
 func (mc *ModelCatalog) runParamsSync(ctx context.Context) error {
+	if mc.datasheet.ModelParametersURL() == "" {
+		return nil
+	}
 	if mc.shouldSyncGate != nil && !mc.shouldSyncGate(ctx) {
 		mc.logger.Debug("model parameters sync cancelled by custom gate")
 		return nil

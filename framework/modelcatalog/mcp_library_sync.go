@@ -215,7 +215,10 @@ func (mc *ModelCatalog) syncMCPLibraryNow(ctx context.Context) (int, error) {
 	if mc.configStore == nil {
 		return 0, nil
 	}
-	url := mc.getMCPLibraryURL()
+	url := resolveMCPLibrarySource(mc.getMCPLibraryURL())
+	if url == "" {
+		return 0, nil
+	}
 	count, err := SyncMCPLibrary(ctx, url, mc.configStore)
 	if err != nil {
 		return 0, err

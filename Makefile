@@ -1744,12 +1744,8 @@ work-clean: ## Remove local go.work
 # Module parameter for mod-tidy (all/core/plugins/framework/transport/tests)
 MODULE ?= all
 
-mod-tidy: ## Run go mod tidy on modules (Usage: make mod-tidy [MODULE=all|cli|core|plugins|framework|transport|tests])
+mod-tidy: ## Run go mod tidy on modules (Usage: make mod-tidy [MODULE=all|core|plugins|framework|transport|tests])
 	@$(ECHO) "$(GREEN)Running go mod tidy...$(NC)"
-	@if [ "$(MODULE)" = "all" ] || [ "$(MODULE)" = "cli" ]; then \
-		$(ECHO) "$(CYAN)Tidying cli...$(NC)"; \
-		cd cli && $(if $(LOCAL),,GOWORK=off) go mod tidy && $(ECHO) "$(GREEN)  ✓ cli$(NC)"; \
-	fi
 	@if [ "$(MODULE)" = "all" ] || [ "$(MODULE)" = "core" ]; then \
 		$(ECHO) "$(CYAN)Tidying core...$(NC)"; \
 		cd core && go mod tidy && $(ECHO) "$(GREEN)  ✓ core$(NC)"; \

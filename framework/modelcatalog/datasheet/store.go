@@ -40,6 +40,7 @@ func (c Config) resolved() Config {
 	if c.SyncInterval <= 0 {
 		c.SyncInterval = DefaultSyncInterval
 	}
+	c.URL, c.ModelParametersURL = ResolveSource(SourcePricing, c.URL), ResolveSource(SourceModelParameters, c.ModelParametersURL)
 	return c
 }
 
