@@ -91,6 +91,14 @@ func dbForUpdate(db *gorm.DB) *gorm.DB {
 // lockBudgetOwner locks the owning governance parent before mutating a budget row.
 func lockBudgetOwner(ctx context.Context, txDB *gorm.DB, budget tables.TableBudget) error {
 	switch {
+	case budget.UserID != nil:
+		var user struct{ ID string }
+		if err := dbForUpdate(txDB.WithContext(ctx)).Table("users").Select("id").Where("id = ?", *budget.UserID).Take(&user).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return ErrNotFound
+			}
+			return err
+		}
 	case budget.VirtualKeyID != nil && *budget.VirtualKeyID != "":
 		var vk tables.TableVirtualKey
 		if err := dbForUpdate(txDB.WithContext(ctx)).First(&vk, "id = ?", *budget.VirtualKeyID).Error; err != nil {
@@ -4734,6 +4742,9 @@ func (s *RDBConfigStore) UpdateBudget(ctx context.Context, budget *tables.TableB
 			return err
 		}
 		ownerBudget := *budget
+		if ownerBudget.UserID == nil {
+			ownerBudget.UserID = existing.UserID
+		}
 		if ownerBudget.VirtualKeyID == nil {
 			ownerBudget.VirtualKeyID = existing.VirtualKeyID
 		}

@@ -99,11 +99,13 @@ type TableBudget struct {
 	ResetConfig *BudgetResetConfig `gorm:"-" json:"reset_config,omitempty"`
 
 	// Owner FKs: a budget belongs to at most one Team, VK, ProviderConfig, ModelConfig, or Customer
-	TeamID           *string `gorm:"type:varchar(255);index" json:"team_id,omitempty"`
-	VirtualKeyID     *string `gorm:"type:varchar(255);index" json:"virtual_key_id,omitempty"`
-	ProviderConfigID *uint   `gorm:"index" json:"provider_config_id,omitempty"`
-	ModelConfigID    *string `gorm:"type:varchar(255);index" json:"model_config_id,omitempty"`
-	CustomerID       *string `gorm:"type:varchar(255);index" json:"customer_id,omitempty"`
+	UserID                  *string `gorm:"type:varchar(255);index:idx_governance_budgets_user_id" json:"user_id,omitempty"`
+	CalendarAlignedOverride *bool   `gorm:"column:calendar_aligned_override" json:"-"`
+	TeamID                  *string `gorm:"type:varchar(255);index" json:"team_id,omitempty"`
+	VirtualKeyID            *string `gorm:"type:varchar(255);index" json:"virtual_key_id,omitempty"`
+	ProviderConfigID        *uint   `gorm:"index" json:"provider_config_id,omitempty"`
+	ModelConfigID           *string `gorm:"type:varchar(255);index" json:"model_config_id,omitempty"`
+	CustomerID              *string `gorm:"type:varchar(255);index" json:"customer_id,omitempty"`
 
 	// Deprecated: set calendar_aligned on the parent access profile / VK / team
 	// instead. Kept for backward compatibility with older config.json files;
@@ -505,6 +507,12 @@ func (b *TableBudget) validateOverride() error {
 func (b *TableBudget) BeforeSave(tx *gorm.DB) error {
 	// A budget belongs to at most one owner type
 	owners := 0
+	if b.UserID != nil {
+		if *b.UserID == "" {
+			return fmt.Errorf("budget user_id must not be empty")
+		}
+		owners++
+	}
 	if b.TeamID != nil {
 		owners++
 	}
@@ -521,7 +529,7 @@ func (b *TableBudget) BeforeSave(tx *gorm.DB) error {
 		owners++
 	}
 	if owners > 1 {
-		return fmt.Errorf("budget cannot have more than one owner (team/virtual key/provider config/model config/customer)")
+		return fmt.Errorf("budget cannot have more than one owner (team/virtual key/provider config/model config/customer/user)")
 	}
 	// Validate that ResetDuration is in correct format (e.g., "30s", "5m", "1h", "1d", "1w", "1M", "1Q", "1Y")
 	if d, err := ParseDuration(b.ResetDuration); err != nil {

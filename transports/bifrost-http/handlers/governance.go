@@ -204,8 +204,9 @@ func NewGovernanceHandler(manager GovernanceManager, configStore configstore.Con
 
 // CreateVirtualKeyRequest represents the request body for creating a virtual key
 type CreateVirtualKeyRequest struct {
-	Name            string `json:"name" validate:"required"`
-	Description     string `json:"description,omitempty"`
+	UserID          *string `json:"user_id,omitempty"`
+	Name            string  `json:"name" validate:"required"`
+	Description     string  `json:"description,omitempty"`
 	ProviderConfigs []struct {
 		Provider          string                  `json:"provider" validate:"required"`
 		Weight            *float64                `json:"weight,omitempty"`
@@ -247,6 +248,8 @@ type vkModelBudgetUpdateRequest struct {
 
 // UpdateVirtualKeyRequest represents the request body for updating a virtual key
 type UpdateVirtualKeyRequest struct {
+	UserID          *string `json:"user_id,omitempty"`
+	userIDSet       bool
 	Name            *string `json:"name,omitempty"`
 	Description     *string `json:"description,omitempty"`
 	ProviderConfigs []struct {
@@ -1656,6 +1659,10 @@ func (h *GovernanceHandler) createVirtualKey(ctx *fasthttp.RequestCtx) {
 		SendError(ctx, 400, "Invalid JSON")
 		return
 	}
+	if req.UserID != nil && (*req.UserID == "" || req.TeamID != nil || req.CustomerID != nil) {
+		SendError(ctx, 400, "user_id must be non-empty and exclusive with team_id/customer_id")
+		return
+	}
 	// Validate required fields
 	if req.Name == "" {
 		SendError(ctx, 400, "Virtual key name is required")
@@ -1709,8 +1716,14 @@ func (h *GovernanceHandler) createVirtualKey(ctx *fasthttp.RequestCtx) {
 		}
 	}
 	var vk configstoreTables.TableVirtualKey
-	if err := h.configStore.ExecuteTransaction(ctx, func(tx *gorm.DB) error {
+	if err := executeUserVKTransaction(ctx, h.configStore, req.UserID, func(tx *gorm.DB) error {
+		if req.UserID != nil {
+			if err := lockVirtualKeyUser(ctx, tx, *req.UserID); err != nil {
+				return err
+			}
+		}
 		vk = configstoreTables.TableVirtualKey{
+			UserID:          req.UserID,
 			ID:              uuid.NewString(),
 			Name:            req.Name,
 			Value:           *schemas.NewSecretVar(governance.GenerateVirtualKey()),
@@ -1840,6 +1853,10 @@ func (h *GovernanceHandler) createVirtualKey(ctx *fasthttp.RequestCtx) {
 		}
 		return nil
 	}); err != nil {
+		if errors.Is(err, errVirtualKeyUserNotFound) {
+			SendError(ctx, 404, "User not found")
+			return
+		}
 		var badReqErr *badRequestError
 		if errors.As(err, &badReqErr) {
 			SendError(ctx, 400, err.Error())
@@ -2073,6 +2090,9 @@ func (h *GovernanceHandler) updateVirtualKey(ctx *fasthttp.RequestCtx) {
 				return configstore.ErrNotFound
 			}
 			return err
+		}
+		if err := validateUserOwnershipUpdate(&lockedVK, &req); err != nil {
+			return &badRequestError{err: err}
 		}
 		vk = &lockedVK
 		sort.Slice(vk.Budgets, func(i, j int) bool {
