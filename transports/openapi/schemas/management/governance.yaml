@@ -390,6 +390,9 @@ VirtualKey:
       type: array
       items:
         $ref: '#/VirtualKeyMCPConfig'
+    user_id:
+      type: [string, 'null']
+      description: ID of the user that owns this virtual key directly. Mutually exclusive with team_id and customer_id.
     team_id:
       type: string
     customer_id:
@@ -473,6 +476,9 @@ CreateVirtualKeyRequest:
             type: array
             items:
               type: string
+    user_id:
+      type: [string, 'null']
+      description: ID of the user that owns this virtual key directly. Mutually exclusive with team_id and customer_id. On update only the unchanged owner is accepted; adding, clearing or changing it is rejected (400).
     team_id:
       type: string
     customer_id:
@@ -546,6 +552,9 @@ UpdateVirtualKeyRequest:
             type: array
             items:
               type: string
+    user_id:
+      type: [string, 'null']
+      description: ID of the user that owns this virtual key directly. Mutually exclusive with team_id and customer_id. On update only the unchanged owner is accepted; adding, clearing or changing it is rejected (400).
     team_id:
       type: string
     customer_id:

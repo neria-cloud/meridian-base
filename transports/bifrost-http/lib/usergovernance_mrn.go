@@ -12,10 +12,15 @@ import (
 
 type protectedUserGovernance struct {
 	virtualKeys, modelConfigs, budgets, rateLimits map[string]bool
+	virtualKeyNames                                map[string]string
 }
 
 func collectProtectedUserGovernance(ctx context.Context, store configstore.ConfigStore, tx *gorm.DB) (protectedUserGovernance, error) {
-	p := protectedUserGovernance{map[string]bool{}, map[string]bool{}, map[string]bool{}, map[string]bool{}}
+	p := protectedUserGovernance{
+		virtualKeys: map[string]bool{}, modelConfigs: map[string]bool{},
+		budgets: map[string]bool{}, rateLimits: map[string]bool{},
+		virtualKeyNames: map[string]string{},
+	}
 	if store == nil || store.DB() == nil {
 		return p, nil
 	}
@@ -35,6 +40,7 @@ func collectProtectedUserGovernance(ctx context.Context, store configstore.Confi
 	ids := make([]string, 0, len(vks))
 	for _, vk := range vks {
 		p.virtualKeys[vk.ID] = true
+		p.virtualKeyNames[vk.Name] = vk.ID
 		ids = append(ids, vk.ID)
 		if vk.RateLimitID != nil {
 			p.rateLimits[*vk.RateLimitID] = true
@@ -102,6 +108,9 @@ func validateUserGovernanceFile(ctx context.Context, config *Config, data *Confi
 	for _, vk := range data.Governance.VirtualKeys {
 		if vk.UserID != nil {
 			return fmt.Errorf("config virtual key %q cannot set user_id", vk.ID)
+		}
+		if id, protected := p.virtualKeyNames[vk.Name]; protected {
+			return fmt.Errorf("config virtual key name %q resolves to protected user governance ID %q", vk.Name, id)
 		}
 	}
 	raw, err := json.Marshal(data.Governance)
