@@ -2,6 +2,7 @@ package lib
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"testing"
@@ -9,6 +10,7 @@ import (
 	"github.com/neria-cloud/meridian-base/core/schemas"
 	"github.com/neria-cloud/meridian-base/framework/configstore"
 	"github.com/neria-cloud/meridian-base/framework/configstore/tables"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -103,4 +105,36 @@ func TestUserGovernanceLoaderBeforeOverlayMRN(t *testing.T) {
 	require.NoError(t, store.DB().Exec("CREATE TABLE users (id varchar(255) PRIMARY KEY)").Error)
 	_, err = collectProtectedUserGovernance(context.Background(), store, nil)
 	require.NoError(t, err)
+}
+
+func TestUserGovernanceLoaderRejectsVirtualKeyNameCollisionMRN(t *testing.T) {
+	previous := logger
+	logger = &userGovernanceLoggerMRN{}
+	defer func() { logger = previous }()
+	for _, source := range []string{SourceOfTruthConfigJSON, SourceOfTruthSplit} {
+		for _, idField := range []string{``, `"id":"",`, `"id":"different-id",`} {
+			t.Run(source+"/"+idField, func(t *testing.T) {
+				ctx := context.Background()
+				store := createTestSQLiteConfigStore(t, t.TempDir())
+				userID := "u1"
+				vk := tables.TableVirtualKey{ID: "protected-id", Name: "protected-name", Value: *schemas.NewSecretVar("sk-bf-original"), UserID: &userID, IsActive: new(true)}
+				require.NoError(t, store.CreateVirtualKey(ctx, &vk))
+				before, err := store.GetVirtualKey(ctx, vk.ID)
+				require.NoError(t, err)
+				var file configstore.GovernanceConfig
+				require.NoError(t, json.Unmarshal([]byte(`{"virtual_keys":[{`+idField+`"name":"protected-name","value":"sk-bf-replaced","is_active":false}]}`), &file))
+				var failure any
+				func() {
+					defer func() { failure = recover() }()
+					loadGovernanceConfig(ctx, &Config{ConfigStore: store}, &ConfigData{SourceOfTruth: source, Governance: &file})
+				}()
+				assert.Equal(t, `invalid user governance configuration: config virtual key name "protected-name" resolves to protected user governance ID "protected-id"`, failure)
+				after, err := store.GetVirtualKey(ctx, vk.ID)
+				require.NoError(t, err)
+				assert.Equal(t, before.Value.GetValue(), after.Value.GetValue())
+				assert.Equal(t, before.IsActiveValue(), after.IsActiveValue())
+				assert.Equal(t, before.UserID, after.UserID)
+			})
+		}
+	}
 }

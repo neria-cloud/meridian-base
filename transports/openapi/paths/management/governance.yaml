@@ -112,6 +112,10 @@ virtual-keys:
               $ref: '../../schemas/management/governance.yaml#/VirtualKeyResponse'
       '400':
         $ref: '../../openapi.yaml#/components/responses/BadRequest'
+        description: Invalid request, including an empty user_id or user_id combined with team_id or customer_id.
+      '404':
+        $ref: '../../openapi.yaml#/components/responses/NotFound'
+        description: The user specified by user_id does not exist.
       '500':
         $ref: '../../openapi.yaml#/components/responses/InternalError'
 
@@ -225,6 +229,7 @@ virtual-keys-by-id:
               $ref: '../../schemas/management/governance.yaml#/VirtualKeyResponse'
       '400':
         $ref: '../../openapi.yaml#/components/responses/BadRequest'
+        description: Invalid request, including team_id or customer_id on a user-owned virtual key, or adding, clearing or changing user_id. An omitted or unchanged user_id is accepted.
       '404':
         description: Virtual key not found
         content:
