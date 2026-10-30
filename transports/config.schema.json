@@ -518,6 +518,7 @@
                 "type": "string",
                 "description": "ID of the customer this budget belongs to (mutually exclusive with the other owner IDs)"
               },
+              "user_id": false,
               "team_id": {
                 "type": "string",
                 "description": "ID of the team this budget belongs to (mutually exclusive with virtual_key_id and provider_config_id)"
@@ -909,6 +910,7 @@
                 "description": "Snap all budget resets to calendar boundaries (day, week, month, year)",
                 "default": false
               },
+              "user_id": false,
               "team_id": {
                 "type": "string",
                 "description": "Associated team ID (mutually exclusive with customer_id)"

@@ -1034,6 +1034,9 @@ func GenerateVirtualKeyHash(vk tables.TableVirtualKey) (string, error) {
 		}
 		hash.Write(data)
 	}
+	if vk.UserID != nil {
+		hash.Write([]byte("userID:" + *vk.UserID))
+	}
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
@@ -1069,6 +1072,12 @@ func GenerateBudgetHash(b tables.TableBudget) (string, error) {
 		hash.Write([]byte(strconv.Itoa(int(b.QuarterStartMonth()))))
 	}
 
+	if b.UserID != nil {
+		hash.Write([]byte("userID:" + *b.UserID))
+	}
+	if b.CalendarAlignedOverride != nil {
+		hash.Write([]byte("calendarAlignedOverride:" + strconv.FormatBool(*b.CalendarAlignedOverride)))
+	}
 	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 

@@ -2174,6 +2174,10 @@ func syncWebhookEndpointsFromFile(ctx context.Context, config *Config, fileEndpo
 
 // loadGovernanceConfig loads and merges governance config from file
 func loadGovernanceConfig(ctx context.Context, config *Config, configData *ConfigData) {
+	if err := validateUserGovernanceFile(ctx, config, configData); err != nil {
+		logger.Fatal("invalid user governance configuration: %v", err)
+		return
+	}
 	if configData.Governance != nil {
 		if err := resolveGovernanceKeyReferences(ctx, config, configData.Governance); err != nil {
 			logger.Fatal("failed to resolve governance key references: %v", err)
@@ -2963,6 +2967,10 @@ func pruneGovernanceConfigToFile(ctx context.Context, config *Config, configData
 	}
 	logger.Debug("source_of_truth=config.json: pruning governance rows not present in config file")
 	err := config.ConfigStore.ExecuteTransaction(ctx, func(tx *gorm.DB) error {
+		protected, err := collectProtectedUserGovernance(ctx, config.ConfigStore, tx)
+		if err != nil {
+			return err
+		}
 		if configData.governanceSectionPresent("virtual_keys") {
 			keep := make(map[string]bool, len(configData.Governance.VirtualKeys))
 			for i := range configData.Governance.VirtualKeys {
@@ -2978,13 +2986,13 @@ func pruneGovernanceConfigToFile(ctx context.Context, config *Config, configData
 				}
 			}
 			for _, existing := range config.GovernanceConfig.VirtualKeys {
-				if existing.ID != "" && !keep[existing.ID] {
+				if existing.ID != "" && !keep[existing.ID] && !protected.virtualKeys[existing.ID] {
 					if err := config.ConfigStore.DeleteVirtualKey(ctx, existing.ID, tx); err != nil {
 						return fmt.Errorf("failed to delete virtual key %s: %w", existing.ID, err)
 					}
 				}
 			}
-			config.GovernanceConfig.VirtualKeys = configData.Governance.VirtualKeys
+			config.GovernanceConfig.VirtualKeys = retainUserGovernance(configData.Governance.VirtualKeys, config.GovernanceConfig.VirtualKeys, protected.virtualKeys, func(row configstoreTables.TableVirtualKey) string { return row.ID })
 		}
 		if configData.governanceSectionPresent("routing_rules") {
 			keep := make(map[string]bool, len(configData.Governance.RoutingRules))
@@ -3020,13 +3028,13 @@ func pruneGovernanceConfigToFile(ctx context.Context, config *Config, configData
 				keep[row.ID] = true
 			}
 			for _, existing := range config.GovernanceConfig.ModelConfigs {
-				if existing.ID != "" && !keep[existing.ID] {
+				if existing.ID != "" && !keep[existing.ID] && !protected.modelConfigs[existing.ID] {
 					if err := config.ConfigStore.DeleteModelConfig(ctx, existing.ID, tx); err != nil && !errors.Is(err, configstore.ErrNotFound) {
 						return fmt.Errorf("failed to delete model config %s: %w", existing.ID, err)
 					}
 				}
 			}
-			config.GovernanceConfig.ModelConfigs = configData.Governance.ModelConfigs
+			config.GovernanceConfig.ModelConfigs = retainUserGovernance(configData.Governance.ModelConfigs, config.GovernanceConfig.ModelConfigs, protected.modelConfigs, func(row configstoreTables.TableModelConfig) string { return row.ID })
 		}
 		if configData.governanceSectionPresent("teams") {
 			keep := make(map[string]bool, len(configData.Governance.Teams))
@@ -3080,13 +3088,13 @@ func pruneGovernanceConfigToFile(ctx context.Context, config *Config, configData
 				keep[row.ID] = true
 			}
 			for _, existing := range config.GovernanceConfig.Budgets {
-				if existing.ID != "" && !keep[existing.ID] {
+				if existing.ID != "" && !keep[existing.ID] && !protected.budgets[existing.ID] {
 					if err := config.ConfigStore.DeleteBudget(ctx, existing.ID, tx); err != nil && !errors.Is(err, configstore.ErrNotFound) {
 						return fmt.Errorf("failed to delete budget %s: %w", existing.ID, err)
 					}
 				}
 			}
-			config.GovernanceConfig.Budgets = configData.Governance.Budgets
+			config.GovernanceConfig.Budgets = retainUserGovernance(configData.Governance.Budgets, config.GovernanceConfig.Budgets, protected.budgets, func(row configstoreTables.TableBudget) string { return row.ID })
 		}
 		if configData.governanceSectionPresent("rate_limits") {
 			keep := make(map[string]bool, len(configData.Governance.RateLimits))
@@ -3094,13 +3102,13 @@ func pruneGovernanceConfigToFile(ctx context.Context, config *Config, configData
 				keep[row.ID] = true
 			}
 			for _, existing := range config.GovernanceConfig.RateLimits {
-				if existing.ID != "" && !keep[existing.ID] {
+				if existing.ID != "" && !keep[existing.ID] && !protected.rateLimits[existing.ID] {
 					if err := config.ConfigStore.DeleteRateLimit(ctx, existing.ID, tx); err != nil && !errors.Is(err, configstore.ErrNotFound) {
 						return fmt.Errorf("failed to delete rate limit %s: %w", existing.ID, err)
 					}
 				}
 			}
-			config.GovernanceConfig.RateLimits = configData.Governance.RateLimits
+			config.GovernanceConfig.RateLimits = retainUserGovernance(configData.Governance.RateLimits, config.GovernanceConfig.RateLimits, protected.rateLimits, func(row configstoreTables.TableRateLimit) string { return row.ID })
 		}
 		return nil
 	})
